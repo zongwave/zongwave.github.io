@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PixelCraft · Zong Wei — ISP / CV / Graphics / AI Knowledge Base</title>
+<meta name="description" content="PixelCraft — Zong Wei's technical knowledge base and open-source homepage: Image Signal Processing (ISP), Computer Vision, Computer Graphics (3DGS / NeRF), and AI — plus authored books on 3D reconstruction and OpenCV deep learning. Hosted on GitHub Pages." />
+<meta name="keywords" content="PixelCraft, ISP, Image Signal Processing, Computer Vision, CV, 3D Gaussian Splatting, NeRF, 3D Reconstruction, Deep Learning, OpenCV, Zong Wei, 宗炜" />
+<meta property="og:title" content="PixelCraft · Zong Wei" />
+<meta property="og:description" content="A knowledge base: ISP · CV · 3D Graphics · AI" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://zongwave.github.io/en/" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%236366f1'/><text x='50' y='68' font-size='52' text-anchor='middle' fill='white' font-family='monospace'>P</text></svg>">
+<style>
+  :root{
+    --bg:#0b0e14; --bg2:#111624; --card:#151b2c; --line:#222b42;
+    --tx:#e6ebf5; --mut:#9aa7bd; --dim:#6b7890;
+    --a:#6366f1; --a2:#22d3ee; --grad:linear-gradient(120deg,#6366f1,#22d3ee);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Roboto,Helvetica,Arial,sans-serif;line-height:1.7;-webkit-font-smoothing:antialiased}
+  a{color:var(--a2);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+  nav{position:sticky;top:0;z-index:50;background:rgba(11,14,20,.82);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .nav{display:flex;align-items:center;justify-content:space-between;height:60px}
+  .logo{font-weight:800;letter-spacing:.5px}
+  .logo b{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .navlinks{display:flex;gap:22px;font-size:.95rem}
+  .navlinks a{color:var(--mut)}
+  .navlinks a:hover{color:var(--tx)}
+
+  header{position:relative;overflow:hidden;padding:72px 0 64px;text-align:center}
+  header::before{content:"";position:absolute;inset:0;background:radial-gradient(600px 300px at 20% 10%,rgba(99,102,241,.18),transparent 60%),radial-gradient(600px 300px at 80% 20%,rgba(34,211,238,.14),transparent 60%);pointer-events:none}
+  .hero-inner{position:relative}
+  .hero-img{border-radius:50%;box-shadow:0 0 0 3px var(--line),0 10px 40px rgba(34,211,238,.15);margin-bottom:26px}
+  h1{font-size:3rem;font-weight:900;letter-spacing:1px}
+  h1 b{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .tag{color:var(--a2);font-weight:700;font-size:1.15rem;margin:8px 0 14px;letter-spacing:3px}
+  .sub{color:var(--mut);max-width:720px;margin:0 auto 8px}
+  .sub-en{color:var(--dim);font-size:.95rem;max-width:720px;margin:0 auto}
+  .cta{display:flex;gap:14px;justify-content:center;margin-top:26px;flex-wrap:wrap}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border-radius:999px;font-weight:700}
+  .btn.primary{background:var(--grad);color:#fff}
+  .btn.ghost{border:1px solid var(--line);color:var(--tx)}
+
+  section{padding:58px 0}
+  .sec-k{font-size:.8rem;letter-spacing:4px;color:var(--a2);text-transform:uppercase}
+  .sec-t{font-size:1.8rem;font-weight:800;margin:6px 0 8px}
+  .sec-d{color:var(--mut);max-width:760px;font-size:1rem}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;margin-top:30px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;transition:transform .18s ease,border-color .18s ease}
+  .card:hover{transform:translateY(-4px);border-color:#39456b}
+  .card .ic{font-size:1.7rem}
+  .card h3{font-size:1.2rem;margin:10px 0 6px}
+  .card h3 small{color:var(--dim);font-weight:600;font-size:.78rem;margin-left:6px;letter-spacing:1px}
+  .card p{color:var(--mut);font-size:.92rem}
+  .card ul{list-style:none;margin-top:12px}
+  .card li{border-top:1px dashed var(--line);padding:7px 0;font-size:.9rem;display:flex;justify-content:space-between;gap:8px}
+  .card li .n{color:var(--dim)}
+  .card li a{color:var(--tx)}
+  .card li a:hover{color:var(--a2)}
+
+  .book-grid{grid-template-columns:repeat(auto-fit,minmax(420px,1fr))}
+  .book{display:flex;flex-direction:column;border-left:4px solid var(--a)}
+  .book:nth-child(2n){border-left-color:var(--a2)}
+  .book h4{font-size:1.15rem;margin-bottom:6px}
+  .book .cover{margin-bottom:14px}
+  .book .cover img{width:150px;max-width:100%;border-radius:8px;border:1px solid var(--line);display:block}
+  .book .meta{color:var(--dim);font-size:.82rem;margin-bottom:10px}
+  .book p{color:var(--mut);font-size:.92rem;flex:1}
+  .book .foot{margin-top:16px;display:flex;gap:10px;font-size:.85rem;flex-wrap:wrap}
+  .chip{border:1px solid var(--line);color:var(--mut);border-radius:999px;padding:3px 10px}
+
+  footer{border-top:1px solid var(--line);padding:34px 0 44px;color:var(--dim);text-align:center;font-size:.9rem}
+  footer a{color:var(--a2)}
+  footer .dot{margin:0 8px;color:#3a4360}
+
+  .lang{margin-left:6px;padding:3px 10px;border:1px solid var(--line);border-radius:999px;color:var(--tx);font-size:.85rem}
+
+  @media (max-width:720px){
+    .navlinks{display:none}
+    h1{font-size:2.2rem}
+    .book-grid{grid-template-columns:1fr}
+    header{padding:52px 0 44px}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap nav">
+    <a class="logo" href="#top">Pixel<b>Craft</b></a>
+    <div class="navlinks">
+      <a href="#kb">Knowledge Base</a>
+      <a href="#books">Books</a>
+      <a href="#opensource">Open Source</a>
+      <a href="#papers">Tech Reports</a>
+      <a href="#embodied">Embodied AI</a>
+      <a href="#demo">Demos</a>
+      <a href="#about">About</a>
+      <a href="https://github.com/zongwave/pixelcraft" target="_blank" rel="noopener">GitHub ↗</a>
+      <a class="lang" href="/">中文</a>
+    </div>
+  </div>
+</nav>
+
+<header id="top">
+  <div class="wrap hero-inner">
+    <img class="hero-img" src="../assets/PixelCraft.gif" width="120" height="120" alt="PixelCraft logo">
+    <h1>Pixel<b>Craft</b></h1>
+    <div class="tag">ISP · CV · Graphics · AI</div>
+    <p class="sub">A comprehensive technical knowledge base covering Image Signal Processing, Computer Vision, Graphics (3DGS · NeRF), and AI — hands-on technical summaries, resources and open-source practice for developers, researchers and enthusiasts.</p>
+    <p class="sub-en">中文版：<a href="/">zongwave.github.io（中文）</a></p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/zongwave/pixelcraft" target="_blank" rel="noopener">GitHub Repository</a>
+      <a class="btn ghost" href="https://github.com/zongwave/pixelcraft/blob/main/README.md" target="_blank" rel="noopener">README · 中文</a>
+      <a class="btn ghost" href="https://github.com/zongwave/pixelcraft/blob/main/README.en.md" target="_blank" rel="noopener">README · English</a>
+    </div>
+  </div>
+</header>
+
+<section id="kb">
+  <div class="wrap">
+    <div class="sec-k">Knowledge Base</div>
+    <div class="sec-t">Four Technical Pillars</div>
+    <p class="sec-d">PixelCraft organizes content around "depth of principle + engineering practice"; many pages provide a <b>中文 | English</b> switch.</p>
+
+    <div class="grid">
+      <div class="card">
+        <div class="ic">📷</div>
+        <h3>ISP <small>IMAGE SIGNAL PROCESSING</small></h3>
+        <p>Camera imaging pipeline: core algorithms and tuning from sensor Raw to viewable images.</p>
+        <ul>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/isp/3a">3A (AE / AWB / AF)</a><span class="n">isp/3a</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/isp/nr">Noise Reduction · 3DNR / Wavelet</a><span class="n">isp/nr</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/isp/iq">Image Quality (IQ) Tuning</a><span class="n">isp/iq</span></li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="ic">👁️</div>
+        <h3>CV <small>COMPUTER VISION</small></h3>
+        <p>Vision algorithms from geometric and video-processing perspectives: stabilization, stitching, reconstruction.</p>
+        <ul>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/cv">Digital Video Stabilization (Gyro)</a><span class="n">cv</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/cv">Video Stitching</a><span class="n">cv</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/graphics">3D Reconstruction · SfM / MVS</a><span class="n">graphics</span></li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="ic">🧊</div>
+        <h3>Graphics <small>COMPUTER GRAPHICS</small></h3>
+        <p>Explicit and implicit 3D representations: 3D Gaussian Splatting and NeRF.</p>
+        <ul>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/graphics/3dgs">3D Gaussian Splatting (3DGS)</a><span class="n">graphics/3dgs</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/graphics/nerf">NeRF / Neural Rendering</a><span class="n">graphics/nerf</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/graphics">Volumetric rendering · positional encoding · density control</a><span class="n">graphics</span></li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="ic">🤖</div>
+        <h3>AI <small>ARTIFICIAL INTELLIGENCE</small></h3>
+        <p>From Transformer components to LLM inference, multimodal and embodied AI.</p>
+        <ul>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/ai/transformer">Transformer Unit</a><span class="n">ai/transformer</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/ai/llm">LLM Inference</a><span class="n">ai/llm</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/ai/multimodal">Multimodal Models</a><span class="n">ai/multimodal</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/ai/lora">LoRA Fine-tuning</a><span class="n">ai/lora</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/ai/embodied">Embodied AI · GR00T</a><span class="n">ai/embodied</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="books" style="background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+  <div class="wrap">
+    <div class="sec-k">Books</div>
+    <div class="sec-t">Authored Publications</div>
+    <p class="sec-d">Books co-authored by Zong Wei, published by China Machine Press and available on the Engineering Technology Digital Library.</p>
+
+    <div class="grid book-grid">
+      <div class="card book">
+        <div class="cover"><img src="../assets/book_nerf3dgs.jpg" alt="3D Reconstruction in Practice: NeRF & 3DGS" loading="lazy"></div>
+        <h4>《3D Reconstruction in Practice: Based on NeRF &amp; 3DGS》</h4>
+        <div class="meta">Zong Wei, B. Mengke-Jilegeli, Ling Jing, et al. · China Machine Press · ISBN 978-7-111-80414-7 · 2026</div>
+        <p>A bridge from 3D vision theory to neural rendering in practice. Systematically covers the evolution from multi-view geometry to neural implicit representations: coordinate transforms and projection, the volumetric rendering pipeline, NeRF positional encoding and hierarchical sampling, the NerfStudio training loop, 3DGS differentiable rasterization and density control — extending into mesh extraction and Blender plugins. 8 chapters with rich code annotations and visualizations.</p>
+        <div class="foot">
+          <a href="https://ebooks.cmpbook.com/detail?id=29719" target="_blank" rel="noopener">📖 Read / Buy online</a>
+          <span class="chip">NeRF</span><span class="chip">3DGS</span><span class="chip">3D Reconstruction</span>
+        </div>
+      </div>
+
+      <div class="card book">
+        <div class="cover"><img src="../assets/book_opencv.jpg" alt="OpenCV Deep Learning in Application and Performance Optimization" loading="lazy"></div>
+        <h4>《OpenCV Deep Learning: Application &amp; Performance Optimization in Practice》</h4>
+        <div class="meta">Wu Zhiwen, Guo Yejun, Zong Wei, Li Peng, Zhao Juan · China Machine Press · ISBN 978-7-111-65646-3 · 2020</div>
+        <p>Co-written by the Intel audio/video team and image-processing experts. A deep dive into the OpenCV DNN module architecture, GPU acceleration (OpenCL / Vulkan), CPU optimization (SIMD / Halide / OpenVINO), performance tooling (TensorBoard / Netscope / VTune), plus a complete face-liveness-detection project and recognition case studies.</p>
+        <div class="foot">
+          <a href="https://ebooks.cmpbook.com/detail?id=21729" target="_blank" rel="noopener">📖 Read / Buy online</a>
+          <span class="chip">OpenCV DNN</span><span class="chip">Performance</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="opensource" style="background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+  <div class="wrap">
+    <div class="sec-k">Open Source</div>
+    <div class="sec-t">Open-Source Contributions</div>
+    <p class="sec-d">Projects I have been deeply involved in. More repos: <a href="https://github.com/zongwave" target="_blank" rel="noopener">github.com/zongwave</a>.</p>
+    <div class="grid" style="grid-template-columns:1fr">
+      <div class="card" style="border-left:4px solid var(--a2)">
+        <h3>🧪 libXCam <small style="color:var(--dim);font-weight:600;font-size:.82rem">intel/libxcam · C++ / OpenCL</small></h3>
+        <p>An extended-camera (and beyond) feature library focused on <b>image-quality improvement and smart analysis</b>, making GPU / CPU / ISP work together via OpenCL for cross-platform acceleration. I was one of the lead maintainers (<b>zongwave, 203 commits</b>, including DNN/OpenVINO module integration and OCL compatibility maintenance). The project was archived in May 2025 (Archiving Notice).</p>
+        <div class="foot">
+          <a href="https://github.com/intel/libxcam" target="_blank" rel="noopener">⭐ GitHub · 616 stars / 237 forks</a>
+          <a href="https://github.com/zongwave/libxcam" target="_blank" rel="noopener">🔀 Personal fork</a>
+          <span class="chip">ISP</span><span class="chip">OpenCL</span><span class="chip">Image Quality</span><span class="chip">Archived ⏸</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="papers" style="background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+  <div class="wrap">
+    <div class="sec-k">Tech Reports</div>
+    <div class="sec-t">Technical Reports</div>
+    <p class="sec-d">Systematic experiments combining feed-forward neural reconstruction (VGGT / VGGT-Ω / 3DGS) with classical geometric pipelines.</p>
+    <figure style="margin:22px 0 0;text-align:center">
+      <img src="../assets/3dgs.png" loading="lazy" alt="VGGT / 3DGS pipeline with one-shot bundle adjustment" style="max-width:100%;border-radius:10px;border:1px solid var(--line)">
+    </figure>
+    <div class="grid" style="grid-template-columns:1fr">
+      <div class="card" style="border-left:4px solid var(--a)">
+        <h4>Bending Feed-forward Reconstruction into 3D Gaussian Splatting: One-shot Bundle Adjustment for VGGT / VGGT-Ω Pose and Intrinsics</h4>
+        <div class="meta">Zong Wei · 2026 · Technical Report · bilingual abstract (中英)</div>
+        <p>Building on the route "VGGT one-shot forward + external 2D observations + one global BA", the gap is fully attributed to <b>network poses &amp; intrinsics, not the initial point cloud</b>. On an identically configured 83-frame matrix (11 held-out views): reusing the SIFT 2D observations from the production pipeline, one-shot triangulation under frozen network poses + a global BA (with k₁ self-calibration) lifts <b>VGGT-Ω held-out PSNR from 21.35 to 25.79 dB (protocol A) / 26.72 dB (protocol B)</b>, matching the full COLMAP pipeline (25.77 / 26.82 dB) with better LPIPS; VGGT recovers +5.12 dB. Three counter-intuitive conclusions are evidenced: feeding the network's dense point map back into 3DGS initialization actually hurts by 2.8–3.2 dB; self-supervised "self-proof" BA built from network-generated tracks reaches the lowest residual yet degrades the pose; and the full chain is validated on a domestic AI accelerator (Skydium BI-V150S, CoreX-5.0).</p>
+        <div class="foot">
+          <a href="../papers/paper.pdf" target="_blank" rel="noopener">📄 Download PDF (1.8 MB)</a>
+          <a href="../papers/paper.txt" target="_blank" rel="noopener">Plain text</a>
+          <span class="chip">VGGT</span><span class="chip">Bundle Adjustment</span><span class="chip">3DGS</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="embodied" style="background:var(--bg2);border-top:1px solid var(--line)">
+  <div class="wrap">
+    <div class="sec-k">Embodied AI</div>
+    <div class="sec-t">GR00T Inference Framework Course</div>
+    <p class="sec-d">A real-code tutorial benchmarked on NVIDIA <b>GR00T-N1.5</b>; the main line (ch. 00–10) is complete: dissecting the VLA inference chain along "observation → normalization → model → denormalization → action", plus end-to-end performance engineering on L20 / NPU.</p>
+    <figure style="margin:22px 0 0;text-align:center">
+      <img src="../assets/n15_pour_demo.gif" width="200" loading="lazy" alt="GR00T-N1.5 pouring-tea demo (from ch. 2)" style="border-radius:14px;border:1px solid var(--line);max-width:100%">
+      <figcaption style="color:var(--dim);font-size:.82rem;margin-top:8px">GR00T-N1.5 pouring-tea demo · from Ch. 02 "Observation Preprocessing &amp; Data Transform"</figcaption>
+    </figure>
+    <div class="grid">
+      <div class="card">
+        <h3>🧠 Main Line (ch. 00–10)</h3>
+        <p>Dissecting <code>Gr00tPolicy.get_action()</code> from the outside in: service entry &amp; data transform, frozen Backbone (Eagle VLM), diffusion / flow-matching Action Head (DiT), end-to-end VLA deployment. Every chapter pairs real code with a "try it yourself" section.</p>
+        <ul>
+          <li><a href="https://github.com/zongwave/pixelcraft/blob/main/ai/embodied/inference_learning/README.md" target="_blank" rel="noopener">Course README · goals / how to use</a></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/blob/main/ai/embodied/inference_learning/00_教学计划.md" target="_blank" rel="noopener">00 Syllabus</a></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/blob/main/ai/embodied/inference_learning/01_推理框架全景.md" target="_blank" rel="noopener">01 Framework overview</a></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/blob/main/ai/embodied/inference_learning/04_模型本体GR00T_N1_5.md" target="_blank" rel="noopener">04 Model: GR00T-N1.5 (ch. 03/05–10)</a></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>🚀 Practice &amp; Advanced (ch. 11–14)</h3>
+        <p>From teaching to deployment: NVIDIA official G1 (N1.7) walkthrough, three-generation version evolution, hands-on L20 end-to-end (incl. a 40.28→1.71 s/step performance postmortem), SigLIP vision tower on NPU, and rerunnable tools.</p>
+        <ul>
+          <li><a href="https://github.com/zongwave/pixelcraft/blob/main/ai/embodied/inference_learning/11_扩充参考_NVIDIA_G1端到端部署教程精读.md" target="_blank" rel="noopener">11 NVIDIA G1 (N1.7) end-to-end deployment</a></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/blob/main/ai/embodied/inference_learning/12_GR00T版本演进_N1.5_N1.6_N1.7原理.md" target="_blank" rel="noopener">12 GR00T evolution N1.5→N1.6→N1.7</a></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/blob/main/ai/embodied/inference_learning/13_L20实战_端到端推理执行手册.md" target="_blank" rel="noopener">13 L20 hands-on inference manual</a></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/blob/main/ai/embodied/inference_learning/14_SigLIP视觉塔NPU接入.md" target="_blank" rel="noopener">14 SigLIP vision tower on NPU</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="demo">
+  <div class="wrap">
+    <div class="sec-k">Demos</div>
+    <div class="sec-t">AI Sample Code</div>
+    <p class="sec-d">Runnable demos shipped inside PixelCraft to demystify core LLM components.</p>
+    <div class="grid">
+      <div class="card">
+        <h3>🧭 Decoder-Only Transformer</h3>
+        <p>A from-scratch autoregressive decoder implementation.</p>
+        <ul><li><a href="https://github.com/zongwave/pixelcraft/blob/main/ai/demo/decoder_only_demo.py">decoder_only_demo.py</a></li></ul>
+      </div>
+      <div class="card">
+        <h3>🎯 Block Attention</h3>
+        <p>Block-attention mechanism explained and implemented.</p>
+        <ul><li><a href="https://github.com/zongwave/pixelcraft/blob/main/ai/demo/block_attention_demo.py">block_attention_demo.py</a></li></ul>
+      </div>
+      <div class="card">
+        <h3>🧩 Mixture of Experts (MoE)</h3>
+        <p>Experimental code for expert-mixing routing.</p>
+        <ul><li><a href="https://github.com/zongwave/pixelcraft/blob/main/ai/demo/moe_demo.py">moe_demo.py</a></li></ul>
+      </div>
+      <div class="card">
+        <h3>📦 Data Pipeline</h3>
+        <p>A training data-loading pipeline design example.</p>
+        <ul><li><a href="https://github.com/zongwave/pixelcraft/blob/main/ai/demo/data_pipeline_demo.py">data_pipeline_demo.py</a></li></ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="about" style="background:var(--bg2);border-top:1px solid var(--line)">
+  <div class="wrap">
+    <div class="sec-k">About</div>
+    <div class="sec-t">About Me</div>
+    <p class="sec-d"><b>Zong Wei (宗炜)</b>, based in Beijing, previously at Nokia and Intel. Long-term focus on Image Signal Processing (ISP), computer vision and performance optimization, with ongoing engineering practice in neural rendering (NeRF / 3DGS) and LLM inference. Featured: the <a href="https://github.com/zongwave/pixelcraft">PixelCraft</a> knowledge base and authored books such as <a href="https://ebooks.cmpbook.com/detail?id=29719">《3D Reconstruction in Practice》</a>. Open source: <a href="https://github.com/zongwave">github.com/zongwave</a>.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>
+      © 2026 Zong Wei (宗炜) · Beijing<span class="dot">•</span><a href="mailto:zongwave@hotmail.com">zongwave@hotmail.com</a><span class="dot">•</span><a href="https://github.com/zongwave" target="_blank" rel="noopener">GitHub</a>
+    </p>
+    <p style="margin-top:8px">Hosted on GitHub Pages · Powered by <a href="https://github.com/zongwave/pixelcraft">PixelCraft</a> · <a href="/">中文版</a></p>
+  </div>
+</footer>
+
+</body>
+</html>
