@@ -101,6 +101,7 @@
       <a href="#kb">知识库</a>
       <a href="#books">图书</a>
       <a href="#papers">技术文章</a>
+      <a href="#embodied">具身教程</a>
       <a href="#demo">Demos</a>
       <a href="#about">关于</a>
       <a href="https://github.com/zongwave/pixelcraft" target="_blank" rel="noopener">GitHub ↗</a>
@@ -224,6 +225,37 @@
           <a href="papers/paper.txt" target="_blank" rel="noopener">纯文本版</a>
           <span class="chip">VGGT</span><span class="chip">Bundle Adjustment</span><span class="chip">3DGS</span>
         </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="embodied" style="background:var(--bg2);border-top:1px solid var(--line)">
+  <div class="wrap">
+    <div class="sec-k">Embodied AI · GR00T</div>
+    <div class="sec-t">GR00T 推理框架学习课程</div>
+    <p class="sec-d">以 NVIDIA <b>GR00T-N1.5</b> 为教学基准的真实代码教程，主线 00–10 章已全部完成：沿“观测 → 归一化 → 模型 → 反归一化 → 动作”拆解 VLA 推理链路，并在 L20 / NPU 平台上落地端到端性能工程。</p>
+    <div class="grid">
+      <div class="card">
+        <h3>🧠 课程主线（00–10 章）</h3>
+        <p>从外到内拆解 <code>Gr00tPolicy.get_action()</code>：服务入口与数据变换、冻结 Backbone（Eagle VLM）、扩散 / 流匹配 Action Head（DiT）、端到端 VLA 部署管线。每章配真实代码对照与“自己动手”小节。</p>
+        <ul>
+          <li><a href="https://github.com/zongwave/pixelcraft/blob/main/ai/embodied/inference_learning/README.md" target="_blank" rel="noopener">课程 README · 定位 / 使用方式</a></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/blob/main/ai/embodied/inference_learning/00_教学计划.md" target="_blank" rel="noopener">00 教学计划</a></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/blob/main/ai/embodied/inference_learning/01_推理框架全景.md" target="_blank" rel="noopener">01 推理框架全景</a></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/blob/main/ai/embodied/inference_learning/04_模型本体GR00T_N1_5.md" target="_blank" rel="noopener">04 模型本体 GR00T-N1.5（含 03/05–10 章）</a></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>🚀 实战与进阶（11–14 + tools）</h3>
+        <p>从教学走向部署：NVIDIA 官方 G1（N1.7）精读、三代版本演进、8×L20 端到端实操（含 40.28→1.71 s/步性能事故复盘）、SigLIP 视觉塔 NPU 接入，及可复跑工具集。</p>
+        <ul>
+          <li><a href="https://github.com/zongwave/pixelcraft/blob/main/ai/embodied/inference_learning/11_扩充参考_NVIDIA_G1端到端部署教程精读.md" target="_blank" rel="noopener">11 NVIDIA G1（N1.7）端到端部署精读</a></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/blob/main/ai/embodied/inference_learning/12_GR00T版本演进_N1.5_N1.6_N1.7原理.md" target="_blank" rel="noopener">12 GR00T 版本演进 N1.5→N1.6→N1.7</a></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/blob/main/ai/embodied/inference_learning/13_L20实战_端到端推理执行手册.md" target="_blank" rel="noopener">13 L20 实战 · 端到端推理执行手册</a></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/blob/main/ai/embodied/inference_learning/14_SigLIP视觉塔NPU接入.md" target="_blank" rel="noopener">14 SigLIP 视觉塔 NPU 接入</a></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/ai/embodied/inference_learning/tools" target="_blank" rel="noopener">tools · 延迟探针 / 配图 / patch</a><span class="n">tools/</span></li>
+        </ul>
       </div>
     </div>
   </div>
