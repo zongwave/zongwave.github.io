@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PixelCraft · 宗炜 Zong Wei — ISP / CV / Graphics / AI 技术知识库</title>
+<meta name="description" content="PixelCraft — 宗炜（Zong Wei）的综合性技术知识库与开源主页：图像信号处理 ISP、计算机视觉 CV、计算机图形学（3DGS / NeRF）、人工智能 AI，及其出版的《三维重建技术与实践：基于NeRF与3DGS》等专著。托管于 GitHub Pages。" />
+<meta name="keywords" content="PixelCraft, ISP, 图像信号处理, 计算机视觉, CV, 3D Gaussian Splatting, NeRF, 三维重建, 深度学习, OpenCV, Zong Wei, 宗炜" />
+<meta property="og:title" content="PixelCraft · Zong Wei" />
+<meta property="og:description" content="专题知识库：ISP · CV · 3D Graphics · AI" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://zongwave.github.io" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%236366f1'/><text x='50' y='68' font-size='52' text-anchor='middle' fill='white' font-family='monospace'>P</text></svg>">
+<style>
+  :root{
+    --bg:#0b0e14; --bg2:#111624; --card:#151b2c; --line:#222b42;
+    --tx:#e6ebf5; --mut:#9aa7bd; --dim:#6b7890;
+    --a:#6366f1; --a2:#22d3ee; --grad:linear-gradient(120deg,#6366f1,#22d3ee);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",Roboto,Helvetica,Arial,sans-serif;line-height:1.7;-webkit-font-smoothing:antialiased}
+  a{color:var(--a2);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+  /* ---------- nav ---------- */
+  nav{position:sticky;top:0;z-index:50;background:rgba(11,14,20,.82);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .nav{display:flex;align-items:center;justify-content:space-between;height:60px}
+  .logo{font-weight:800;letter-spacing:.5px}
+  .logo b{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .navlinks{display:flex;gap:22px;font-size:.95rem}
+  .navlinks a{color:var(--mut)}
+  .navlinks a:hover{color:var(--tx)}
+
+  /* ---------- hero ---------- */
+  header{position:relative;overflow:hidden;padding:72px 0 64px;text-align:center}
+  header::before{content:"";position:absolute;inset:0;background:radial-gradient(600px 300px at 20% 10%,rgba(99,102,241,.18),transparent 60%),radial-gradient(600px 300px at 80% 20%,rgba(34,211,238,.14),transparent 60%);pointer-events:none}
+  .hero-inner{position:relative}
+  .hero-img{border-radius:50%;box-shadow:0 0 0 3px var(--line),0 10px 40px rgba(34,211,238,.15);margin-bottom:26px}
+  h1{font-size:3rem;font-weight:900;letter-spacing:1px}
+  h1 b{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .tag{color:var(--a2);font-weight:700;font-size:1.15rem;margin:8px 0 14px;letter-spacing:3px}
+  .sub{color:var(--mut);max-width:680px;margin:0 auto 8px}
+  .sub-en{color:var(--dim);font-size:.95rem;max-width:680px;margin:0 auto}
+  .cta{display:flex;gap:14px;justify-content:center;margin-top:26px;flex-wrap:wrap}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border-radius:999px;font-weight:700}
+  .btn.primary{background:var(--grad);color:#fff}
+  .btn.ghost{border:1px solid var(--line);color:var(--tx)}
+  .btn span{font-size:.85rem;color:#fff;opacity:.85}
+  .btn.rss{border:1px solid var(--line);color:var(--tx)}
+
+  /* ---------- sections ---------- */
+  section{padding:58px 0}
+  .sec-k{font-size:.8rem;letter-spacing:4px;color:var(--a2);text-transform:uppercase}
+  .sec-t{font-size:1.8rem;font-weight:800;margin:6px 0 8px}
+  .sec-d{color:var(--mut);max-width:720px;font-size:1rem}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;margin-top:30px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;transition:transform .18s ease,border-color .18s ease}
+  .card:hover{transform:translateY(-4px);border-color:#39456b}
+  .card .ic{font-size:1.7rem}
+  .card h3{font-size:1.2rem;margin:10px 0 6px}
+  .card h3 small{color:var(--dim);font-weight:600;font-size:.78rem;margin-left:6px;letter-spacing:1px}
+  .card p{color:var(--mut);font-size:.93rem}
+  .card ul{list-style:none;margin-top:12px}
+  .card li{border-top:1px dashed var(--line);padding:7px 0;font-size:.9rem;display:flex;justify-content:space-between;gap:8px}
+  .card li .n{color:var(--dim)}
+  .card li a{color:var(--tx)}
+  .card li a:hover{color:var(--a2)}
+
+  /* ---------- books ---------- */
+  .book-grid{grid-template-columns:repeat(auto-fit,minmax(420px,1fr))}
+  .book{border-left:4px solid;border-left-color:var(--a);display:flex;flex-direction:column}
+  .book:nth-child(2n){border-left-color:var(--a2)}
+  .book h4{font-size:1.15rem;margin-bottom:6px}
+  .book .meta{color:var(--dim);font-size:.82rem;margin-bottom:10px}
+  .book p{color:var(--mut);font-size:.92rem;flex:1}
+  .book .foot{margin-top:16px;display:flex;gap:10px;font-size:.85rem;flex-wrap:wrap}
+  .chip{border:1px solid var(--line);color:var(--mut);border-radius:999px;padding:3px 10px}
+
+  /* ---------- footer ---------- */
+  footer{border-top:1px solid var(--line);padding:34px 0 44px;color:var(--dim);text-align:center;font-size:.9rem}
+  footer a{color:var(--a2)}
+  footer .dot{margin:0 8px;color:#3a4360}
+
+  @media (max-width:720px){
+    .navlinks{display:none}
+    h1{font-size:2.2rem}
+    .book-grid{grid-template-columns:1fr}
+    header{padding:52px 0 44px}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap nav">
+    <a class="logo" href="#top">Pixel<b>Craft</b></a>
+    <div class="navlinks">
+      <a href="#kb">知识库</a>
+      <a href="#books">图书</a>
+      <a href="#demo">Demos</a>
+      <a href="#about">关于</a>
+      <a href="https://github.com/zongwave/pixelcraft" target="_blank" rel="noopener">GitHub ↗</a>
+    </div>
+  </div>
+</nav>
+
+<header id="top">
+  <div class="wrap hero-inner">
+    <img class="hero-img" src="assets/PixelCraft.gif" width="120" height="120" alt="PixelCraft logo">
+    <h1>Pixel<b>Craft</b></h1>
+    <div class="tag">ISP · CV · Graphics · AI</div>
+    <p class="sub">综合性技术知识库 —— 图像信号处理 / 计算机视觉 / 计算机图形学（3DGS · NeRF）/ 人工智能，汇聚技术总结与开源实践。</p>
+    <p class="sub-en">A technical knowledge base covering Image Signal Processing, Computer Vision, Graphics and AI, built for developers, researchers and enthusiasts.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/zongwave/pixelcraft" target="_blank" rel="noopener">GitHub 仓库</a>
+      <a class="btn ghost" href="https://github.com/zongwave/pixelcraft/blob/main/README.md" target="_blank" rel="noopener">中文 README</a>
+      <a class="btn ghost" href="https://github.com/zongwave/pixelcraft/blob/main/README.en.md" target="_blank" rel="noopener">English README</a>
+    </div>
+  </div>
+</header>
+
+<section id="kb">
+  <div class="wrap">
+    <div class="sec-k">Knowledge Base</div>
+    <div class="sec-t">四大技术板块</div>
+    <p class="sec-d">PixelCraft 以“原理深度 + 工程落地”的方式组织内容，多数页面提供 <b>中文 | English</b> 双语切换。</p>
+
+    <div class="grid">
+      <div class="card">
+        <div class="ic">📷</div>
+        <h3>ISP 图像信号处理 <small>IMAGE SIGNAL PROCESSING</small></h3>
+        <p>相机成像链路：从传感器 Raw 到可视图像的核心算法与调优。</p>
+        <ul>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/isp/3a">3A (AE / AWB / AF)</a><span class="n">isp/3a</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/isp/nr">图像降噪 · 3DNR / Wavelet</a><span class="n">isp/nr</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/isp/iq">图像质量调优 IQ Tuning</a><span class="n">isp/iq</span></li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="ic">👁️</div>
+        <h3>CV 计算机视觉 <small>COMPUTER VISION</small></h3>
+        <p>从几何与视频处理视角看视觉算法：稳定、拼接、重建。</p>
+        <ul>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/cv">数字视频稳定 DVS (Gyro)</a><span class="n">cv</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/cv">视频拼接 Stitching</a><span class="n">cv</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/graphics">三维重建 · SfM / MVS</a><span class="n">graphics</span></li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="ic">🧊</div>
+        <h3>Graphics 计算机图形学 <small>GRAPHICS</small></h3>
+        <p>神经渲染与显式表示两大路线：NeRF 与 3D Gaussian Splatting。</p>
+        <ul>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/graphics/3dgs">三维高斯泼溅 3DGS</a><span class="n">graphics/3dgs</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/graphics/nerf">神经辐射场 NeRF / Neural Rendering</a><span class="n">graphics/nerf</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/graphics">体渲染 · 位置编码 · 密度控制</a><span class="n">graphics</span></li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="ic">🤖</div>
+        <h3>AI 人工智能 <small>ARTIFICIAL INTELLIGENCE</small></h3>
+        <p>从 Transformer 组件到大模型推理、多模态与具身智能的实践总结。</p>
+        <ul>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/ai/transformer">Transformer 组件</a><span class="n">ai/transformer</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/ai/llm">大语言模型推理 LLM</a><span class="n">ai/llm</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/ai/multimodal">多模态大模型</a><span class="n">ai/multimodal</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/ai/lora">LoRA 微调</a><span class="n">ai/lora</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/ai/embodied">具身智能 GR00T</a><span class="n">ai/embodied</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="books" style="background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+  <div class="wrap">
+    <div class="sec-k">Books</div>
+    <div class="sec-t">出版专著</div>
+    <p class="sec-d">以作者身份参与撰写的专业书籍，均收录于机械工业出版社“工程科技数字图书馆”。</p>
+
+    <div class="grid book-grid">
+      <div class="card book">
+        <h4>《三维重建技术与实践：基于 NeRF 与 3DGS》</h4>
+        <div class="meta">作者：宗炜，巴·孟克吉尔格力，凌静，等 · 机械工业出版社（华章）· ISBN 978-7-111-80414-7 · 2026</div>
+        <p>架起从三维视觉理论通往神经渲染实战的桥梁。系统解析从多视图几何到神经隐式表示的演进逻辑：坐标变换与投影映射、体渲染流水线、NeRF 位置编码与分层采样、NerfStudio 训练闭环、3DGS 可微光栅化与密度控制，并延伸至三维模型提取与 Blender 插件等产业应用。全书 8 章，配合丰富代码注解与可视化案例。</p>
+        <div class="foot">
+          <a href="https://ebooks.cmpbook.com/detail?id=29719" target="_blank" rel="noopener">📖 在线阅读 / 购买</a>
+          <span class="chip">NeRF</span><span class="chip">3DGS</span><span class="chip">三维重建</span>
+        </div>
+      </div>
+
+      <div class="card book">
+        <h4>《OpenCV 深度学习应用与性能优化实践》</h4>
+        <div class="meta">作者：吴至文，郭叶军，宗炜，李鹏，赵娟 · 机械工业出版社 · ISBN 978-7-111-65646-3 · 2020</div>
+        <p>Intel 音视频团队与图像处理专家联合撰写。深入解析 OpenCV DNN 模块架构与实现原理，覆盖 GPU（OpenCL / Vulkan）、CPU（指令集 SIMD / Halide / OpenVINO）加速与性能优化工具（TensorBoard / Netscope / VTune），并给出完整的人脸活体检测项目与主流识别项目实战解析。</p>
+        <div class="foot">
+          <a href="https://ebooks.cmpbook.com/detail?id=21729" target="_blank" rel="noopener">📖 在线阅读 / 购买</a>
+          <span class="chip">OpenCV DNN</span><span class="chip">性能优化</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="demo">
+  <div class="wrap">
+    <div class="sec-k">Demos</div>
+    <div class="sec-t">AI 示例代码</div>
+    <p class="sec-d">PixelCraft 内置可运行的演示代码，帮助理解大模型核心组件。</p>
+    <div class="grid">
+      <div class="card">
+        <h3>🧭 Decoder-Only Transformer</h3>
+        <p>从零实现自回归 Decoder 架构。</p>
+        <ul><li><a href="https://github.com/zongwave/pixelcraft/blob/main/ai/demo/decoder_only_demo.py">decoder_only_demo.py</a></li></ul>
+      </div>
+      <div class="card">
+        <h3>🎯 Block Attention</h3>
+        <p>块级注意力机制的实现与理解。</p>
+        <ul><li><a href="https://github.com/zongwave/pixelcraft/blob/main/ai/demo/block_attention_demo.py">block_attention_demo.py</a></li></ul>
+      </div>
+      <div class="card">
+        <h3>🧩 Mixture of Experts (MoE)</h3>
+        <p>专家混合路由机制的实验代码。</p>
+        <ul><li><a href="https://github.com/zongwave/pixelcraft/blob/main/ai/demo/moe_demo.py">moe_demo.py</a></li></ul>
+      </div>
+      <div class="card">
+        <h3>📦 Data Pipeline</h3>
+        <p>训练数据加载管线设计示例。</p>
+        <ul><li><a href="https://github.com/zongwave/pixelcraft/blob/main/ai/demo/data_pipeline_demo.py">data_pipeline_demo.py</a></li></ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="about" style="background:var(--bg2);border-top:1px solid var(--line)">
+  <div class="wrap">
+    <div class="sec-k">About</div>
+    <div class="sec-t">关于我</div>
+    <p class="sec-d"><b>宗炜 Zong Wei</b>，现居北京，就职于 Intel，长期深耕图像信号处理（ISP）、计算机视觉与性能优化，并持续投入神经渲染（NeRF / 3DGS）与大模型推理的工程实践。代表作：<a href="https://github.com/zongwave/pixelcraft">PixelCraft</a> 技术知识库、<a href="https://ebooks.cmpbook.com/detail?id=29719">《三维重建技术与实践》</a>等专著。开源代码见 <a href="https://github.com/zongwave">github.com/zongwave</a>。</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>
+      © 2026 宗炜 Zong Wei · Beijing<span class="dot">•</span><a href="mailto:zongwave@hotmail.com">zongwave@hotmail.com</a><span class="dot">•</span><a href="https://github.com/zongwave" target="_blank" rel="noopener">GitHub</a>
+    </p>
+    <p style="margin-top:8px">Hosted on GitHub Pages · Powered by <a href="https://github.com/zongwave/pixelcraft">PixelCraft</a></p>
+  </div>
+</footer>
+
+</body>
+</html>
