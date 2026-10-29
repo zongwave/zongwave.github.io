@@ -100,6 +100,7 @@
     <div class="navlinks">
       <a href="#kb">知识库</a>
       <a href="#books">图书</a>
+      <a href="#opensource">开源</a>
       <a href="#papers">技术文章</a>
       <a href="#embodied">具身教程</a>
       <a href="#demo">Demos</a>
@@ -212,11 +213,33 @@
   </div>
 </section>
 
-<section id="papers" style="background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+<section id="opensource" style="background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+  <div class="wrap">
+    <div class="sec-k">Open Source</div>
+    <div class="sec-t">开源项目贡献</div>
+    <p class="sec-d">深度参与过的开源项目。更多仓库见 <a href="https://github.com/zongwave" target="_blank" rel="noopener">github.com/zongwave</a>。</p>
+    <div class="grid" style="grid-template-columns:1fr">
+      <div class="card" style="border-left:4px solid var(--a2)">
+        <h3>🧪 libXCam <small style="color:var(--dim);font-weight:600;font-size:.82rem">intel/libxcam · C++ / OpenCL</small></h3>
+        <p>面向<b>影像增强与智能分析</b>的相机扩展库（extended camera features），让 GPU / CPU / ISP 协同工作以提升图像质量，基于 OpenCL 跨平台加速。本人为主要维护者之一（<b>zongwave，203 次提交</b>，含 DNN/OpenVINO 模块接入、OCL 兼容层维护等工作）。项目已于 2025-05 归档（Archiving Notice）。</p>
+        <div class="foot">
+          <a href="https://github.com/intel/libxcam" target="_blank" rel="noopener">⭐ GitHub · 616 stars / 237 forks</a>
+          <a href="https://github.com/zongwave/libxcam" target="_blank" rel="noopener">🔀 个人 fork</a>
+          <span class="chip">ISP</span><span class="chip">OpenCL</span><span class="chip">图像质量</span><span class="chip">已归档 ⏸</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="papers"<section id="papers" style="background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
   <div class="wrap">
     <div class="sec-k">Tech Reports</div>
     <div class="sec-t">技术文章</div>
     <p class="sec-d">把前馈式神经重建（VGGT / VGGT-Ω / 3DGS）与经典几何管线相结合的系统性实验技术报告。</p>
+    <figure style="margin:22px 0 0;text-align:center">
+      <img src="assets/3dgs.png" loading="lazy" alt="VGGT / 3DGS 管线与一次性束调整链路示意" style="max-width:100%;border-radius:10px;border:1px solid var(--line)">
+    </figure>
     <div class="grid" style="grid-template-columns:1fr">
       <div class="card book" style="border-left:4px solid var(--a)">
         <h4>前馈重建前端如何接入 3D 高斯泼溅：VGGT / VGGT-Ω 位姿与内参的一次性束调整精化</h4>
