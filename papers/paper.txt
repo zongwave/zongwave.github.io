@@ -1,0 +1,529 @@
+                    前馈重建前端如何接入 3D 高斯泼溅：
+               VGGT / VGGT-Ω 位姿与内参的一次性束调整精化
+      Bending Feed-forward Reconstruction into 3D Gaussian Splatting:
+     One-shot Bundle Adjustment for VGGT / VGGT-Ω Pose and Intrinsics
+                                                        宗炜
+                                                zongwave@hotmail.com
+
+摘 要：前馈式三维重建网络（VGGT、VGGT-Ω）单次前向即可同                            自标定畸变后去畸变，见 §4.3），差距分别为 7.52 dB 与
+时输出相机、深度与稠密点图，其推理速度比基于特征匹配的增量                                5.08 dB。
+式结构恢复（COLMAP）快数倍，因而被认为是可替代后者的重建
+前端。然而当我们把这两类前端接入同一条 3D 高斯泼溅（3DGS）                            关键问题是差距来自哪里。3DGS 的几何初始化有两个来源：
+训练管线并严格控制变量时，前馈网络的结果在留出视角上比                                  位姿与点云。如果差距主要来自点云（网络点更密、含飘点、
+COLMAP 低 4.4–7.5 dB。本文把这一差距完整归因到相机位姿与内                       尺度不一致），那么改进网络点云是主线；如果来自位姿，那
+参而不是初始点云：（i）网络位姿存在相干性系统偏差，旋转残差                               么必须在网络之外引入新的几何约束。我们用两组实验做了二
+            °           °
+中位数 1.29 （VGGT）与 0.54 （VGGT-Ω），而 COLMAP 解之间                  分：
+                °
+的一致性约为 0.04 ；（ii）网络从不估计镜头畸变（k1≡0），焦距
+系统性偏长 +2.6%，使得在原始畸变图像上训练时重投影模型整体                                点云被排除。在同一份BA 精化位姿下，只把 3DGS 的初
+失配。据此我们提出并在国产 AI 加速器（天数 BI-V150S，                             始化从三角化出的 SIFT 点云换成网络稠密点图，PSNR 从
+CoreX-5.0）上验证一条极简精化链路（路线 A）：复用生产链路已                            25.79 dB 掉到 22.99 dB（Ω）与 25.10 dB 掉到 21.90 dB
+有的 SIFT 二维观测，在冻结的网络位姿下做一次三角化，再做一次                             （VGGT）——点云质量确实影响质量，但它不是差距的来
+全局束调整（并夹一轮点过滤），从而同时修复位姿与内参；网络                                 源，反而是网络前端的额外短板。反过来，COLMAP 只用
+自身的稠密点图不参与任何残差。在一个 83 帧、留出 11 视角、共                            32693 个稀疏点就能得到 25.77 dB，说明 3DGS 对初始点
+20 个档位的同配置干净矩阵上：本文链路把 VGGT-Ω 从 21.35 dB                       的稠密度宽容、对几何一致性苛刻。
+提到 25.79 dB（口径 A）与从 21.74 dB 提到 26.72 dB（口径 B）
+，与 COLMAP 全流程的 25.77 dB / 26.82 dB 打平（LPIPS 更优，                位姿被锁定。表 2 显示网络位姿与 COLMAP 参照的旋转
+0.198 vs 0.203）；VGGT 收回 +5.12 dB，残余 -1.13 dB。旋转残              残差中位数为 1.29°（VGGT）/0.54°（Ω）；我们人为把
+差同时降到 0.0701°（Ω）与 0.3212°（VGGT），畸变从无到有（                       COLMAP 位姿旋转扰动 0.6°/1.3°/2.6°，留出 PSNR 从
+k1=-0.0133，参照 -0.0148）。我们进一步给出三条反直觉结论：把                       26.82 dB 掉到 20.29/17.55/16.34 dB（图 3 右）。这条敏
+网络自己的稠密点图接回 3DGS 初始化会损失 2.8–3.2 dB；用网络                        感度曲线正好解释了网络前端的全部掉点幅度。
+自点图自建轨迹做"自证式"束调整虽然重投影残差最低（0.256 px）
+却使位姿更歪（1.29°→1.43°），即束调整的全部收益来自与网络无                          据此，本文不把精力放在"如何修网络点云"，而是研究一个更
+关的独立对应；把第 1 轮束调整迭代上限从 100 降到 30，解逐位相                         朴素的问题：能否用一次性的经典优化，把前馈网络的位姿与
+同而墙钟从 142 s 降到 57 s。最后我们澄清了成本结构：COLMAP                       内参修到与 COLMAP 同一水平？答案是可以，而且做法极简
+的束调整并非单次昂贵，而是被增量式建图反复调用（实测 35 次全                             ：把 COLMAP 内部用于"已有位姿补点"的三角化与束调整搬
+局 +≈81 次局部，累计 ≈97 s，占 mapper 墙钟 53%）；本文把它                    到推理末尾，二维观测直接复用生产链路已经算好的 SIFT 匹
+降级为推理末尾的一次求解，成本线性于观测数，但同时诚实地指
+                                                             配，网络位姿只作为初值。我们在国产 AI 加速器（天数
+出——加上这一步之后，前馈前端的速度优势基本被吃平（VGGT
+                                                             BI-V150S）平台上完整实现了该链路并给出成本分析。
+≈144 s vs COLMAP 149 s；VGGT-Ω ≈211 s）。
+关键词：前馈式三维重建；VGGT；VGGT-Ω；3D 高斯泼溅                              本文贡献：
+；束调整；结构恢复；COLMAP；神经渲染                                         (1) 归因与量化（§5.2）：把前馈前端在 3DGS 上的                   5–6
+                                                              dB 损失归因到相机位姿与内参，并用扰动敏感度曲线、点
+ Key words: feed-forward 3D reconstruction; VGGT;             云替换消融、尺度归一实验排除其他解释；指出网络从不
+VGGT-Ω; 3D Gaussian splatting; bundle adjustment;             输出畸变系数（k1≡0）这一结构性缺陷无法靠"改用去畸变
+structure-from-motion; COLMAP; neural rendering               图像"规避，只能由束调整补出。
+                                                              (2) 方法（路线 A，§3）：与官方前馈束调整的实质差别只
+1 引言                                                          在三维初值的来源——不再在查询帧像素处"查表"取网络稠
+3D 高斯泼溅（3DGS）[1] 的重建质量由两件事决定：输入图                              密点图，而是用外部二维轨迹（SIFT 内点）在冻结的网络
+像的覆盖，以及作为优化起点的相机位姿与内参。前者的生产                                   位姿下三角化、重新生成稀疏三维点，随后一次全局 BA（
+标准是 COLMAP[2]：SIFT 提取[5] → 两两匹配与几何校验                          放开焦距与畸变）→ 点过滤 → 再 BA。网络稠密点图既不
+→ 增量式注册 → 反复束调整。这条链路鲁棒但慢，且其失败                                 进入残差，也不作为 3DGS 初始化。它使 VGGT-Ω 与
+模式（视频序列上的注册分裂、弱纹理场景中断、多子模型需                                   COLMAP 打平（26.72 vs 26.82 dB），VGGT 残余 -1.13
+要人工合并）在工程上代价高昂。因此当 VGGT[6]、                                   dB。
+VGGT-Ω[7] 这类前馈网络以"单次前向、亚秒级、同时给出相
+                                                              (3) 对应关系的判决性实验（§3.3）：束调整的收益 100%
+机/深度/点图"的姿态出现时，"把 3DGS 前端换成网络"成为一
+                                                              来自独立于网络的对应。用网络自点图自建 1.91×106 条观
+个自然的工程设想。
+                                                              测做"自证式"BA，代价最高（291 s）、残差最低（0.256
+这个设想在我们的生产链路上被证伪了。表 1 的第一行与第五                                 px）、但位姿更歪（1.29°→1.43°）、k1 连符号都错。这条
+/六行是同一批视频帧、同一份训练配置、同一台机器上的对                                   结论直接否定了"给前馈网络加自监督 BA 精修"的朴素做法。
+照结果：VGGT 裸前向比 COLMAP 低 5.79 dB、VGGT-Ω 低
+4.42 dB（口径 A）；若统一到 COLMAP 的最佳配置（各家
+
+
+                                                         1
+  (4) 成本结构与诚实的净账（§6）：实测 COLMAP 的 BA                min_{K_j,R_j,t_j},{X_p} Σ_p Σ_(j,u)∈ T_p
+                                                                                            (1)
+  墙钟 97 s/占 mapper 53%（35 次全局 + ≈81 次局部调用               ρ(|π(K_j,R_j,t_j,X_p)-x_j,u|^2),
+  ，平均 1 s/次）；本文 BA 第 1 轮在 30 迭代即达到与          其中 Tp 是第 p 个三维点的可见性轨迹，xj, u 是第 j 帧第 u 个
+  100/300 迭代逐位相同的解（57 s vs 142 s）；BA 墙钟线     二维特征观测，π 含畸变模型，ρ 为鲁棒核。式 (1) 的关键结
+  性于观测数（0.27/0.50/1.91 百万观测对应 68/117/291 s）。 构是：只有 T 里的观测产生残差。因此"用哪一来源的对应关
+                                                        p
+  加 BA 之后前馈前端的速度优势基本消失。                      系"完全决定了优化能拿到什么新信息。
+  (5) 可复现性（附录 C）：全部 20 档同配置干净重跑、逐
+  视角数据、脚本与 COLMAP 4.0.4 rig/frame 二进制格式的 3.2 路线 A：冻结位姿三角化 + 一次全局 BA
+  踩坑记录（位姿真正存储在 frames.bin 而非             本文链路只有五步（下面 (a)–(e)，结构对照图 1）：
+  images.bin——我们在早期版本正是踩在此处而得到过一            (a) 网络位姿导出。把 gj, Kj 写成 COLMAP 稀疏模型。此
+  组"虚假打平"的结论，已撤回并在附录中说明识别方法）。               处必须同时改写 frames.bin（COLMAP 4.0 的 rig/frame
+                                                       重构后，位姿真正存储于此，images.bin 中的 (q, t) 为派
+2 相关工作                                                 生量；见附录 A）。
+
+2.1 经典结构恢复与束调整                                         (b) 三角化。colmap point_triangulator 在冻结的位姿与
+                                                       内参下（- -clear_points 1 - -refine_intrinsics 0）
+COLMAP[2] 的增量式建图以"注册一帧、三角化、局部 BA，
+                                                       ，把已有的 SIFT 二维匹配（two_view_geometries 表的
+周期性全局 BA 与重三角化"为骨架；束调整的稀疏求解器与
+                                                       RANSAC 内点）成组射线求交，现场生成三维点与轨迹。
+规模化策略见 Ceres[4] 与近实时 SfM 的 BA-in-the-loop[3]。
+                                                       这一步不改位姿（实测：三角化前后网络旋转残差逐位相
+二维对应来自 SIFT[5] 匹配加本质矩阵/基础矩阵 RANSAC 校
+                                                       同，均为 1.2912°）。
+验。本文把"三角化 + BA"这两个组件从建图循环中拆出来单
+独使用，保留了 COLMAP 的求解器与数据格式，但删掉了"                         (c) 一次全局 BA。bundle_adjuster 放开位姿、焦距与畸
+增量注册 + 反复 BA"的整个循环。                                    变（refine_focal_length=1, refine_extra_params=1）
+                                                       ，迭代上限 30。
+2.2 前馈式重建                                              (d)   点过滤。point_filtering   -   -max_reproj_error   4
+VGGT[6] 用交替注意力的 Transformer 一次前向预测相机、                  - -min_tri_angle 1.5。
+深度、点图与轨迹；VGGT-Ω[7] 进一步用单一稠密预测头、
+                                                       (e) 再 BA + 再过滤。第二轮 50 迭代内即 CONVERGENCE。
+寄存器注意与自监督协议扩展规模。DUSt3R[8] 等成对/多视
+图点图方法属于同一大类。我们核查了 VGGT-Ω 论文与官方                       与官方前馈束调整的实质差别：Xp 从哪里来 VGGT 官方的 -
+仓库：其推理阶段没有束调整，"bundle adjustment"仅出现在                -use_ba（demo_colmap.py + np_to_pycolmap.py）也是"外部
+ §3.5.2 的数据标注管线中，且对应关系由外部算法（SIFT、                    二维轨迹 + pycolmap 求解"的三段式，但它喂给式 (1) 的三维
+SuperPoint+SuperGlue[9]、ALIKED+LightGlue[10]、        初值 Xp 是按像素查表得来的：在查询帧的 2D 关键点 (u, v)
+VGGSfM Tracker[12]）提供，网络输出只在 RANSAC 内点               处直接取 points_3d[img][v][u]（网络输出的是稠密逐像素
+不足时用于初始化。VGGT(v1) 官方 demo_colmap.py 的 -              点图，故任意像素必可取到，不需要反投影搜索），其余帧的
+-use_ba 同样是"网络给三维点 + 外部关键点/轨迹给对应 +                    2D 观测由外部追踪器补齐，再用 Point2D(xy,
+pycolmap 求解"的三段式，并在注释中明确允许把                          point3D_id) + Track 登记成关联图。这条做法的结构性后果
+pred_tracks 换成 COLMAP/LightGlue/LoFTR[11] 的轨迹。       是：Xp 的误差与深度头误差同分布，残差里不含任何独立于
+本文的工作可视为把这条原本属于标注侧的链路搬到推理侧，                          深度的几何信息，BA 无法把它拉回正确位置；其质量闸门也
+并量化它对下游 3DGS 的价值。                                    只有置信度阈值（conf>1.2）与一次投影预筛（8 px）两道软
+                                                     门。本文把这一步整体替换为三角化：Xp 由"冻结的网络位姿
+2.3 3DGS 与几何先验                                       + 外部 SIFT 内点的射线求交"生成，深度头完全不进入 Xp，
+3DGS[1] 以各向异性高斯为基元做可微光栅化；                            并继承 COLMAP 的三道硬闸门（两视图 RANSAC 内点、
+Faster-GS[13] 在保持高斯数与质量不变的前提下优化其求解                   tri_min_angle 射线夹角、point_filtering 的重投影误差/
+流程，本文的训练后端即其在本平台（天数 CoreX）的移植版                       三角化角剔除）。网络在官方链路里是"被观测的对象"，在本
+本（移植要点见附录 B）。已有工作与我们的观察一致：                           文链路里只是"射线的摆放"，即优化初值。这一替换在表 1 中
+3DGS 的致密化/剪枝阈值隐含依赖真实米制尺度与准确位姿                        可单独计价：omega→omegatri 仅改变 Xp 的来源（位姿仍冻
+，位姿误差会被致密化过程"用高斯糊住"，从而在训练视角看                         结）即得 +1.66 dB、vggt→vggttri 得 +1.01 dB；随后放开
+似拟合、留出视角崩塌——这正是我们观测到的"训练集                            位姿与内参的 BA 再贡献 +2.78 dB/+4.11 dB。反向证据同样
+SSIM 最高而留出 PSNR 最低"现象。                               成立：把网络稠密点图 graft 进 3DGS 初始化反而损失
+                                                     2.80/3.20 dB（§5.3）。
+3 方法                                                 为什么不需要把二维观测"关联"到网络三维点 式 (1) 需要的是"
+                                                     三维点 ↔ 二维观测"的对应，而这些三维点不必是网络的点。
+3.1 记号与问题设定                                          步骤 (b) 在网络位姿张开的射线束里重新生成三维点，于是三
+给定 N 帧图像（本文 N=83）。前馈网络输出每帧相机                         维点与二维观测天生同标架、同尺度，无需任何配准；网络在
+gj=(Rj, tj)、内参 Kj（含焦距 fj、主点 cj，畸变恒为 0）与稠密            这里的角色是射线的摆放（Rj, tj, Kj），即优化初值，而非被
+点图 {Xi}、置信度 ci。COLMAP 类管线则给出稀疏三维点集合                  观测的对象。反之，若要把网络稠密点与 SIFT 观测挂接（路
+与二维观测。束调整求解                                          线 C），需按 |π(Kj, gj, Xi)-k|<r 做互近邻挂接，此时信息量天
+                                                     花板由 SIFT 匹配数决定（本文 ≈3035 观测/帧），与路线 A
+                                                     白送的观测数几乎相同，却把网络自身的深度误差（AbsRel
+
+
+                                                 2
+图 1 三条链路的结构与实测墙钟（83 帧，同一台 16×BI-V150S）。第一行 COLMAP 保留"穷举匹配 + 增量建图 + 反复 BA"；第二行前馈网络删掉对应关系
+            与优化，也因此删掉了内参与畸变的估计能力；第三行本文只借 COLMAP 的"三角化 + 一次 BA"两个组件。
+
+
+0.01–0.06）焊死在 Xp 的初值里，并额外引入约 25% 的 BA            4 实验设置
+尺度漂移需要处理。故未采纳。
+                                                 4.1 平台与实现
+网络稠密点图的正确位置 BA 结束后，我们用 BA 前后相机中
+心集合的 Umeyama 相似变换把网络点图整体搬进 BA 世界系                全部实验在 root@10.9.11.38 的一台 16× 天数 BI-V150S（
+，并以轨迹长度 0 写入模型（track_len=0 ⇒ 零残差 ⇒ 在雅            每卡 32GB，ixsmi 监控）服务器上完成，软件栈为
+可比矩阵中连列都没有），仅作为 3DGS 初始化的候选。实                    CoreX-5.0.0（CUDA 10.2 兼容层）+ PyTorch 2.10（CoreX
+验（§5.3）表明这条路不该走：它使 PSNR 下降 2.8–3.2 dB。           构建）。SfM 工具为自编译 COLMAP 4.0.4（Commit
+                                                 65e6439e，CUDA/ivcore11）；3DGS 训练后端为 nerficg 框
+3.3 路线 B：自证式轨迹为何无效                               架内的 Faster-GS[13]（本平台移植见附录 B）；前端为官方
+为检验"是否必须有外部对应"，我们构造了对照组：以网络点                     VGGT-1B（bf16，518 裁剪）与 VGGT-Ω-1B（fp32，512
+图反投影出的三维点为 Xp，把每帧点图按相对深度互检（                      balanced）。全部评测指标中 LPIPS 使用 VGG 权重。
+≤2%）与置信度分位阈值投影到其它帧，自建 ∼1.91×106 条
+                                                 4.2 数据、留出协议与训练配置
+观测（202883 个点，均轨迹长 9.4）。这组观测与网络位姿
+完全自洽，初始代价 3.385 px（因写盘标架误差而偏高，但                  数据为一段行车视频的抽帧序列 c6183bb30c62，83 帧
+BA 会自行消化），BA 后降到 0.256 px 并 CONVERGENCE——        1920×1080。训练分辨率缩放 0.25（480×270）；按文件名
+残差全场最低。然而位姿旋转残差从 1.2912° 升到 1.4296°，             每 8 帧留 1 帧作测试（TEST_STEP=8），即 11 张留出、72 帧
+k1 估成 +0.0010（真值 -0.0148，符号即错），留出 PSNR 只         训练；训练 7000 步、RANDOM_SEED=0、其余超参取默认。所
+涨 0.05 dB（19.99→20.04，噪声级）。                      有 20 个档位共用同一批图像、同一份训练配置与同一随机种
+                                                 子，只有"位姿/内参/初始点云从何而来"这一个变量。
+机理解释：束调整是"用二维观测约束三维几何"的机制，其信
+息全部来自二维观测独立于当前三维与位姿估计的那部分。当                      4.3 两种质量口径
+观测由位姿与深度自身投影生成时，目标函数在当前解处已近
+                                                 前馈网络输出 k1≡0，而 COLMAP 的 SIMPLE_RADIAL 解给
+乎最优，梯度只把解往"更自洽"而不是"更正确"的方向推；而
+                                                 出 k1=-0.0148。如果所有档位都用 COLMAP 的去畸变图像，
+自洽性本身对尺度、朝向乃至整体畸变都不敏感（gauge 自由
+                                                 那么网络档位的像素与其自身模型假设不一致（图像已被
+度），于是优化反而放大了系统性偏差。工程结论：任何"网
+                                                 COLMAP 的 k1 弯过一次）；如果都用原始畸变图，则网络档
+络自监督 BA"都必须引入独立对应（SIFT/LoFTR/光流/IMU/
+                                                 位缺少畸变项。为避免口径偏袒，我们两种都报：口径 A：全
+帧序先验）。
+                                                 部使用原始畸变图像（SIMPLE_RADIAL 模型，1920×1080）
+                                                 ；口径 B：各档用自己标定的 k1 做 image_undistorter 去畸
+3.4 成本结构：一次性 BA vs 反复 BA
+                                                 变（网络档位用其 BA 后估出的 k1），即 COLMAP 生产链路
+表 3 与图 7 给出三种"BA 很贵"的不同含义。（i）COLMAP              的真实口径。本文标题性结论在两种口径下都成立，且口径
+的 BA 贵在被反复调用：默认 mapper 184 s，把 BA 迭代上
+                                                 B 更能反映生产可比性。
+限设为 0/1 并放宽函数容差后为 87 s，两者差 ≈97 s 即 BA
+在 mapper 内的真实占比（53%），来自 35 次全局 BA 与约             4.4 数据卫生：一次干净矩阵重跑
+81 次局部 BA 的累计，平均 1 s/次；同时平均重投影从
+                                                 早期结果存在两处归属风险：（1）部分档位的输出目录同名
+1.648 px 降到 0.565 px，说明这 97 s 买到的是几何精度本身。
+                                                 （配置里的 MODEL_NAME 未随档位改写）；（2）数据集目录
+（ii）我们的单次 BA 反而比整个"无 BA 的 mapper"更久（
+                                                 在中途被重建过，导致同名档位在前后两次评测中指向不同数
+136 s vs 87 s），因为它第一轮就作用在全部 503770 条残差
+                                                 据。为此我们重跑了整个矩阵：每档独立 MODEL_NAME、每档
+上。（iii）但我们的调用次数是 2，且成本线性于观测数（
+                                                 独占一张 GPU、同一波次并发、逐档独立日志，并把
+0.27/0.50/1.91 百万观测 →68/117/291 s），因此规模增长可
+                                                 PSNR/SSIM/LPIPS、逐视角 PSNR、高斯数、墙钟一并落盘。
+预测，且不存在"多子模型/注册失败重试"这一不可预算项。
+                                                 本文所有数字来自这一次干净重跑；重跑与独立早期结果的偏
+
+
+
+                                             3
+离均在 ±0.3 dB 内（种子噪声水平）。                                              px——我们的解在重投影意义上甚至比它更好，因为参照含远
+                                                                     端外点）。
+5 结果                                                                内参被顺手修好，这是 PSNR 的另一半来源。焦距：Ω
+                                                                    872.09→852.55、VGGT 872.34→856.04，参照 850.73（网
+5.1 主结果
+                                                                    络原本偏长 +2.5%）；畸变 k1：0→-0.0133 / 0→-0.0127，参
+表 1 与图 2 给出全部档位。三点观察：                                               照 -0.0148。这解释了为什么"改用去畸变图像"救不了裸网络
+（1）前馈前端确实掉得多。口径 A 下 VGGT 裸前向 19.98                                  档位（表 1 的 vggtu/omegau 反而更低）：网络不知道有畸变
+dB、VGGT-Ω 21.35 dB，COLMAP 参照 25.77 dB；口径 B                          ，去畸变只能由别人的 k1 完成，而那个 k1 与网络位姿不自洽。
+下分别为 19.30/21.74 dB 对 26.82 dB。Ω 稳定优于 VGGT（                         只有 BA 能同时给出自洽的 (f, k1) 对。
+其位姿残差本就更小：0.54° vs 1.29°）。                                          位姿敏感度实验。为把"dB 每度"量化，我们对 COLMAP 解注
+（2）一次性 BA 把差距基本抹平。口径 A：Ω 从 21.35 dB 升                               入人为旋转扰动并重训（口径 B）：0° 26.82 dB、0.6° 20.29
+到 25.79 dB（+4.44 dB），反超 COLMAP 参照 0.02 dB；                          dB、1.3° 17.55 dB、2.6° 16.34 dB（图 3 右）。小扰动段斜
+VGGT 从 19.98 dB 升到 25.10 dB（+5.12 dB），残余 -0.67                      率约 -10.9 dB/°。把各档位的实测旋转残差投影到这条曲线上
+dB。口径 B：Ω 21.74→26.72 dB（+4.98 dB），与                                ，可以预测其掉点幅度：Ω（0.54°）约 -5.9 dB，实测 -5.47
+COLMAP 26.82 dB 差 0.10 dB，而 LPIPS 更优（0.198 vs                       dB（口径 B，21.74 vs 26.82）；VGGT（1.29°）约 -13 dB，
+0.203）、SSIM 基本相同（0.875 vs 0.877）；VGGT                               实测 -7.52 dB——VGGT 实测优于预测，说明网络误差是相
+19.30→25.69 dB，残余 -1.13 dB。                                         干的（整体偏转/尺度偏差），部分可被 3DGS 的致密化吸收
+                                                                    ，而人为扰动是逐帧独立的，更毒。这也解释了为什么"一次
+（3）三角化与 BA 的贡献可分离。只三角化不 BA（位姿冻
+                                                                    全局 BA"就够：相干误差正是低维参数化 BA 最擅长消除的成
+结）：Ω +1.66 dB、VGGT +1.01 dB——这部分来自"用真实
+                                                                    分。
+SIFT 点云替换网络稠密点云"；BA 的净贡献则是 Ω +2.78 dB、
+VGGT +4.11 dB。可见位姿/内参修复才是主收益来源。
+  表 1 口径 A（原始畸变图像）下的留出集质量。83 帧、0.25 分辨率、
+  7000 步、11 张留出、seed=0，全部 20 个档位同一次干净矩阵重跑。
+档位                前端配置                  PSNR    SSIM    LPIPS
+cmap_raw          COLMAP 全流程            25.77   0.837   0.234
+omega             Ω 裸前向（网络点云）           21.35   0.674   0.326
+omegatri          Ω + 三角化               23.01   0.741   0.290
+omegatriba        Ω + 三角化 + BA（本文）      25.79   0.843   0.219
+                                                                    图 3 左：口径 B（各家自标定 k 去畸变）下的留出集质量，本文链路 Ω 与
+omegatriba_vgpts Ω + BA，但用网络稠密点云        22.99   0.766   0.264                            1
+                                                                    COLMAP 全流程相差 0.10 dB。右：把 COLMAP 位姿人为旋转扰动的敏感
+vggt              VGGT 裸前向（网络点云）        19.98   0.596   0.427       度曲线（圆点），以及各档位实测旋转残差与质量（竖线）；两条轴在同一
+vggttri           VGGT + 三角化            20.99   0.641   0.372                          量级上相互印证。
+vggttriba         VGGT + 三角化 + BA（本文）   25.10   0.811   0.253
+                  VGGT + BA，但用网络稠密点                                 5.3 消融：什么有用、什么有害
+vggttriba_vgpts                         21.90   0.709   0.341
+                  云
+                                                                    把网络稠密点云接回来是有害的。在完全相同的 BA 位姿/内
+vggtgrid          路线 B：自证轨迹（无 BA）       19.99   0.600   0.407
+                                                                    参下，仅把 3DGS 初始化从三角化 SIFT 点云换成网络稠密点
+vggtgridba        路线 B：自证轨迹 + BA        20.04   0.601   0.403
+                                                                    图（omegatriba_vgpts、vggttriba_vgpts），PSNR 从
+                                                                    25.79 掉到 22.99 dB（-2.80）与 25.10 掉到 21.90 dB（-3.20）
+                                                                    。注意这两个档位的位姿与最优档位完全相同——纯粹是点云
+                                                                    造成的。这与 60 帧受控实验中"Ω 训练集 SSIM 最高但留出
+                                                                    PSNR 最低"的观察一致：稠密网络点带来的是过拟合能力，
+                                                                    不是泛化能力。
+                                                                    自证式轨迹 BA 无效。路线 B（vggtgrid/vggtgridba）：
+                                                                    19.99→20.04 dB，位姿反而从 1.2912° 恶化到 1.4296°，代价
+                                                                    虽然收敛到全场最低的 0.256 px（图 4 右）。
+                                                                    BA 多迭代没有收益。把第 1 轮上限从 100 提到 300（
+图 2 口径 A 全部 12 个非消融/消融档位的留出集 PSNR（柱顶两行分别为
+SSIM 与 LPIPS）。绿色为本文路线 A，橙色为前馈前端，灰色为路线 B（                            vggttrilong），最终代价 0.379011 px 与 100 迭代逐位相同
+                   自证轨迹）。                                           ，模型侧旋转残差仍是 0.3212°，PSNR 25.02 vs 25.10 dB（
+                                                                    噪声）。反之把上限降到 30，解与 100 迭代逐位相同（旋转
+5.2 位姿与内参：差距的直接来源                                                   差 ≤6×10-6°、光心差 ≤5.8×10-7、f/k1 完全一致）而墙钟省
+表 2 以 COLMAP 模型为参照（Umeyama 相似变换吸收尺度                                 85 s。残余的 -0.67 dB（VGGT，口径 A）是信息极限而非迭
+与刚体自由度后统计不可吸收残差，轨迹对角线 10.782 m）。                                    代极限：要再进一步只能增加独立对应（稠密匹配器、帧序
+BA 之前，Ω 的旋转残差中位数 0.5404°、VGGT 1.2912°，而"                            /IMU 先验）。
+COLMAP 与自身另一种解之差"仅 0.04° 量级，可作为噪声地
+板。BA 之后：Ω 降到 0.0701°（降 7.7×，已接近噪声地板）
+，VGGT 降到 0.3212°（降 4.0×）；光心残差（占轨迹对角线）
+0.395%→0.096%、0.579%→0.291%；平均重投影 1.443
+px→0.386 px、1.629 px→0.372 px（COLMAP 参照 0.565
+
+
+                                                                4
+             表 2 位姿/内参残差（参照 = COLMAP 模型，Umeyama 吸收尺度与刚体自由度后的不可吸收残差；轨迹对角线 10.782m）。
+      模型             阶段                   光心残差%   旋转 p50(°)              旋转 p95(°)          重投影(px)       f           k1
+      vggt           网络裸输出                0.579   1.2912                 2.464              —             872.34      0
+      vggttri        + 三角化（位姿冻结）          0.579   1.2912                 2.464              1.629         872.34      0
+      vggttriba      + 一次 global BA       0.291   0.3212                 0.665              0.372         856.04      -0.0127
+      omega          网络裸输出                0.395   0.5404                 1.573              —             872.09      0
+      omegatri       + 三角化（位姿冻结）          0.395   0.5404                 1.573              1.443         872.09      0
+      omegatriba     + 一次 global BA       0.096   0.0701                 0.199              0.386         852.55      -0.0133
+      cmap_raw       COLMAP 参照（噪声地板）      0.040   0.040                  —                  0.565         850.73      -0.0148
+      vggtgridba     路线 B（自证轨迹 BA）        —       1.4296（变差）             —                  0.256         865.63      +0.0010
+
+                                                                   表 3 BA 成本实测（同一 database.db、同一容器、空载、
+                                                              OMP_NUM_THREADS=8）。BA 墙钟近似线性于观测数：0.27M→68s、
+                                                                                     0.50M→117s、1.91M→291s。
+                                                           跑法                         墙钟(s)     Final cost(px)   备注
+                                                           colmap mapper（默认                                      2 个子模型 / 83 图 / 32690
+                                                                                      184       0.565
+                                                           BA）                                                   点
+                                                           mapper（关掉 BA 迭代）87                   1.648            83 图 / 37315 点
+                                                                                      ≈97                        35 次 global + ≈81 次 local
+                                                           ⇒ mapper 内 BA                        —
+                                                                                      (53%)                      ，≈1s/次
+                                                           本文 BA 第 1 轮（30 迭
+                                                                            57                  0.33855          与 60/100 迭代解逐位相同
+ 图 4 左：三角化产物的轨迹长度分布（对数纵轴）。本文三角化点云中位                        代）
+轨迹长仅 2、均值 3.39，比 COLMAP 增量建图（中位 4、均值 5.90）更"瘦"             本文 BA 第 1 轮（100
+ ，这既是 BA 成本可控的原因，也是残余差距的来源之一。右：BA 残差与                                                 142       0.33855          NO_CONVERGENCE
+                                                           迭代）
+位姿残差的关系——残差最低者（路线 B）位姿最歪，说明"更自洽"不等于"
+                                                           本文 BA 第 1 轮（300                                       PSNR 25.08 vs 24.97：噪
+                    更正确"。                                                             171.6     0.37900
+                                                           迭代）                                                   声
+                                                           point_filtering + 第 2 轮
+                                                                                      24        0.31747          CONVERGENCE（18 迭代）
+5.4 逐视角行为与定性                                               BA(50)
+                                                           自证轨迹 BA（1.91M                                         CONVERGENCE，但位姿
+图 5 给出 11 张留出视角的逐视角 PSNR。六个档位的曲线形                          观测）
+                                                                                      291       0.256
+                                                                                                                 更歪
+状一致（视角 0 最易、视角 6 最难），但间距随难度增大：
+在最难视角上 COLMAP 23.29 dB、Ω+BA 24.40 dB、Ω+三角
+化 22.03 dB、Ω 裸 19.18 dB、VGGT 裸 17.80 dB。留出视角
+离训练轨迹越远，位姿/内参误差的杠杆越大——这与式 (1) 的
+几何一致（外推视角的像素位移 ∝f·Δθ，故 f 偏长与 θ 偏差
+会同向叠加）。图 6 的定性对比同样显示：网络裸前向的飘点
+与"糊墙式"过曝在 BA 后基本消失，Ω+BA 与 COLMAP 的渲
+染在难视角上已难以分辨。
+                                                           图 7 左：第 1 轮全局 BA 的迭代上限与墙钟；30、60、100 迭代给出逐位
+                                                           相同的解（阴影区），300 迭代无收益。右：BA 墙钟随观测数线性增长。
+
+                                                           表 3 的 A/B 实验（同一 database.db、同一容器、空载、8
+                                                           线程）说明：COLMAP 的 BA 在 mapper 内占 ≈97 s（53%）
+                                                           ，但它是 35 次全局 + 约 81 次局部调用的累计，平均单次仅
+                                                           1 s。注意 mapper 内部把 print_summary 置为 false[2]，日
+                                                           志里看不到 BA 报告，这也是"BA 最耗时"长期无法从日志证
+                                                           实的原因；COLMAP 4.0.4 的 mapper BA 亦为同步串行，不
+                                                           与注册循环重叠。
+                                                           我们的做法是把 BA 降级为推理末尾的两次全局求解：第 1 轮
+                                                           （30 迭代）57 s、过滤 3 s、第 2 轮（50 上限，实际 18 迭代
+                                                           CONVERGENCE）21 s，加三角化 22 s 合计 ≈106 s；若第 1 轮
+                                                           仍用 100 迭代则 ≈191 s。成本线性于观测数（图 7 右），因
+                                                           此可通过 - -Mapper.tri_ignore_two_view_tracks 1（丢弃
+                                                           短轨迹）或改用 sequential_matcher 降低观测规模来进一步
+                  图 5 逐视角 PSNR（11 张留出）。
+                                                           压缩。
+
+                                                           6.2 端到端净账
+6 耗时与成本
+
+6.1 BA 到底贵在哪里
+
+
+
+
+                                                     5
+图 6 定性对比（3 个留出视角 × 6 档，480×270；每格右下角为该视角 PSNR）。第一行最难视角之一：网络裸前向出现明显的地面拉丝与车身重影，三角
+                                化改善结构，BA 后与 COLMAP 参照基本一致。
+
+
+                                                   注阶段的经典组件搬到推理侧，并证明它对下游 3DGS 是决
+                                                   定性的。这也暗示了一个产品含义：前馈网络的公开评测口径
+                                                   （AUC、AbsRel）与下游可重建性之间存在缝隙——k1≡0
+                                                   就 是最典型的缝隙，本文的 +1.2 dB（口径 A→B 时本文链路
+                                                   的 增益）几乎全部来自它。
+                                                   仍未解决的问题。（1）网络稠密点图在 3DGS 初始化上仍无
+                                                   用（-2.8 至 -3.2 dB），需要飘点治理或"稠密几何当先验而非
+                                                   观测"（BA 外加软约束 w|X-proj(X)|2）；（2）本文复用了生
+图 8 左：BA 在 COLMAP 内部占比的 A/B 实测，以及与本文一次性 BA 的
+       对比（柱下为重投影误差）。右：前端各环节墙钟。                     产链路的 SIFT 数据库，虽然对 COLMAP 而言是免费午餐，
+                                                   但对"完全不想跑匹配"的场景，需另找独立对应来源（
+图 8 右给出前端净账（83 帧）：COLMAP 生产脚本 148.96 s
+                                                   LoFTR[11]/RAFT 类稠密匹配、或帧序与 IMU 先验）；（3）
+；VGGT 前端 83.90 s，加 BA 后 ≈194 s（30 迭代版 ≈144 s）
+                                                   动态目标（视频中的行驶车辆）在轨迹里构成系统性外点，本
+；Ω 前端 104.50 s，加 BA 后 ≈296 s（30 迭代版 ≈211 s）。
+                                                   文靠 point_filtering 与鲁棒核压住，但没有专门建模。
+也就是说，在 COLMAP 能顺利建图的素材上，"用网络省时
+间"这个动机在加上 BA 之后基本不成立。训练侧不受前端影
+响（7000 步单卡 159–203 s，点数越少越快），三链路端到
+                                                   8 结论
+端（前端 + 训练 + 渲染 + 评测）分别为 COLMAP 537.19 s、           在国产化 AI 加速器平台上，我们把 COLMAP 的"三角化 + 束
+VGGT 465.74 s、Ω 554.23 s。                          调整"两个组件从增量式建图循环中剥离出来，用作前馈重建
+                                                   前端（VGGT / VGGT-Ω）输出的一次性后处理：冻结网络位
+那么网络前端的价值在哪里？三点：（i）全帧注册：网络
+                                                   姿做三角化以重建与外部 SIFT 观测一致的三维点集，再放开
+83/83 全注册，而 mapper 在同一数据上产生 2 个子模型、
+                                                   位姿、焦距与畸变做一次全局 BA，夹一轮点过滤后再次 BA。
+221 次注册尝试（其中失败重试的成本不计入成功路径）；（
+                                                   仅此五步即可把前馈前端在 3DGS 上的 4.4–7.5 dB 损失收回
+ii）成本可预算：我们只有"匹配 + 一次 BA"两项确定成本，没
+                                                   至 0.10 dB（Ω）与 1.13 dB（VGGT），并把网络从不估计的
+有"注册失败、分裂、人工合并、重跑"这一项；（iii）初值质
+                                                   畸变系数从无到有标定出来。我们同时给出该做法的两个必要
+量：网络给出相干型偏差的初值，使"一次全局 BA"成为充分
+                                                   条件（对应关系必须独立于网络；网络稠密点云不应进入残差、
+操作，而 COLMAP 必须靠增量循环自己把初值找出来。反过
+                                                   也不应作为 3DGS 初始化）与其代价（前端速度优势基本消
+来，如果素材本身能被 COLMAP 顺利处理，网络前端的净收
+                                                   失）。对希望用前馈网络替换 SfM 前端的工程实践，本文的
+益接近 0——这是我们希望明确说清的边界。
+                                                   建议是：把网络当"好的初值生成器"，把经典 BA 留在推理末
+                                                   尾，而不是指望网络端到端替代优化。
+7 讨论与局限
+                                                   [1] Kerbl B, Kopanas G, Leimkühler T, Drettakis G. 3D Gaussian splatting for
+结论的适用范围。本文只有一段 83 帧行车视频（弱纹理地面                           real-time radiance field rendering[J]. ACM Transactions on Graphics,
++ 多车遮挡）、7000 步训练。绝对 PSNR 不可与公开基准直                       2023, 42(4): 139:1–139:14.
+
+接比较（分辨率与步数都远低于 3DGS 论文口径），但档位                      [2] Schönberger J L, Frahm J M. Structure-from-motion revisited[C]//Proc.
+                                                       IEEE Conf. Computer Vision and Pattern Recognition (CVPR). 2016:
+之间的差在同一配置下具有可比性，且 ±0.3 dB 以内的差我们                       4104–4113.
+一律视为噪声。口径 B 下 VGGT 残余 -1.13 dB 说明单次 BA             [3] Schönberger J L, Preisach C, Niemasz K, et al. Structure-from-motion with
+对初值更差的 VGGT 并未完全收敛到 COLMAP 水平。                          incremental mapping and bundle adjustment in the loop[C]//Eur. Conf.
+                                                        Computer Vision (ECCV). 2020.
+与 VGGT-Ω 论文的关系。Ω 的精度指标（相机 AUC 等）是                  [4] Agarwal S, Mierle K, Szeliski R, et al. Estimating the epipolar geometry /
+网络裸输出，论文中的 BA 属于数据标注侧且由外部对应驱动                           Bundle    adjustment     in    the     large:    a    scalable    modern
+[7]。因此本文不是"发明论文没有的东西"，而是把论文放在标                          implementation[C]//Eur. Conf. Computer Vision (ECCV). 2010.
+
+
+
+
+                                               6
+[5] Lowe D G. Distinctive image features from scale-invariant keypoints[J].       性能极差，是本仓库早期"nerficg 训练要几个小时"的主因之一。
+     International Journal of Computer Vision, 2004, 60(2): 91–110.
+                                                                                  移植后的训练吞吐：7000 步单卡 137–222 s。需要提醒的是
+[6] Wang J, Chen M, Karaev N, Vedaldi A, Rupprecht C, Novotny D. VGGT:
+    Visual geometry grounded transformer[C]//Proc. IEEE/CVF Conf.
+                                                                                  ：本平台的任何精度/崩溃问题都应先用 CUDA_VISIBLE_DEVic
+    Computer Vision and Pattern Recognition (CVPR). 2025: 5942–5954.               E 单卡复现排除并发干扰。
+    arXiv:2503.11651.
+[7] Wang J, Chen M, Zhang S, Karaev N, Schönberger J, Labatut P,
+    Bojanowski P, Novotny D, Vedaldi A, Rupprecht C. VGGT-Ω[EB/OL].
+                                                                                  附录 C 复现要点与脚本清单
+    arXiv:2605.15195, 2026.                                                       code/ 目录（与容器内 /root/cmp_test/wzong_eval/bin/ 一
+[8] Wang S, Leroy V, Cabon Y, et al. DUSt3R: Geometric 3D vision made             致）：run_matrix.sh（20 档矩阵，每档独立 MODEL_NAME/独
+    easy[C]//Proc. IEEE/CVF Conf. Computer Vision and Pattern Recognition
+    (CVPR). 2024.
+                                                                                  立 GPU）、run_ba_arm.sh（路线 A 一键：导出 → 三角化
+[9] Sarlin P E, Cadena C, Siegwart R, Dymczyk R. SuperGlue: Learning              → BA → 过滤 → BA → 过滤 → graft → 配置）、
+    feature matching with graph neural networks[C]//Proc. IEEE/CVF Conf.          run_undist_arm.sh（口径 B）、run_one.sh（训练 + 留出评
+    Computer Vision and Pattern Recognition (CVPR). 2020.                         测）、colmap_frames.py（frames.bin/cameras.bin 读写与
+[10] Lindenberger P, Arpinin S, Sarlin P E, et al. LightGlue: Local feature       位姿改写）、mk_vggt_sparse2.py（网络位姿 → COLMAP
+    matching at light speed[C]//Proc. IEEE/CVF Int. Conf. Computer Vision
+    (ICCV). 2023.                                                                 模型）、mk_grid_tracks.py（路线 B 自证轨迹）、
+[11] Sun J, Shen Z, Wang Y, et al. LoFTR: Detector-free local feature             mk_ba_plus_vgpts.py（Sim3 graft 网络点云）、
+    matching with transformers[C]//Proc. IEEE/CVF Conf. Computer Vision           geom_diff.py（Umeyama 位姿/内参残差）、cmpba2.py（两
+    and Pattern Recognition (CVPR). 2021.
+                                                                                  份 BA 解逐位对拍）、ba_vs_mapper.sh/ba_ab.sh（BA 成本
+[12] Lin H, Peng S, Sun H, et al. VGGSfM: Visual geometry grounded deep
+                                                                                  A/B）、perview.py（逐视角 PSNR）、paper_meta.py（元
+    structure from motion[C]//Proc. IEEE/CVF Conf. Computer Vision and
+    Pattern Recognition (CVPR). 2024.                                             数据与轨迹长度统计）。数据与图表生成：
+[13] Hahlbohm F, Franke L, Eisemann M, Magnor M. Faster-GS: Analyzing             tools/make_figs.py。关键命令：
+    and improving Gaussian splatting optimization[EB/OL]. arXiv, 2026.
+                                                                                  colmap point_triangulator --database_path $DB --image_path $IMG \
+                                                                                    --input_path $M --output_path $M --clear_points 1 \
+附录 A COLMAP 4.0.4 二进制格式与三个坑                                                         --refine_intrinsics 0 --Mapper.tri_min_angle 0.5 \
+                                                                                    --Mapper.tri_ignore_two_view_tracks 0 --Mapper.num_threads 8
+坑 1：位姿真正存储在 frames.bin。4.0 引入 rig/frame 重构                                        colmap bundle_adjuster --input_path $IN --output_path $OUT \
+                                                                                    --BundleAdjustment.refine_focal_length 1 \
+，bundle_adjuster/point_triangulator 读取 rigs.bin +                                   --BundleAdjustment.refine_extra_params 1 \
+frames.bin，其中每条 frame 记录为 frame_id:i32 |                                            --BundleAdjustmentCeres.max_num_iterations 30
+                                                                                  colmap point_filtering --input_path $IN --output_path $OUT \
+rig_id:i32 | 7×f64(q , q , q , q , t , t , t ) | 20 B                               --max_reproj_error 4 --min_tri_angle 1.5   # 注意无 PointFiltering. 前缀
+                           w     x    y     z    x    y     z
+尾部（本例记录长 84 B；解析时用 len(body)//n 反推记录长
+更稳），images.bin 中的 (q, t) 只是派生量。我们早期版本的                                            附录 D 全部 20 个档位的完整结果
+导出脚本只改了 images.bin，frames.bin 原样拷贝                                                表 4 给出本文全部档位（含口径 A/口径 B、消融档与位姿扰
+COLMAP 模板 ⇒ 后续三角化/BA 一直在用 COLMAP 自己的                                              动档）的完整留出集指标，便于核对正文中任何一处差值。表
+位姿，网络位姿被完全忽略，并因此得到过"Ω+BA 与                                                        中"三维初值来源"一列即本文与官方前馈束调整的分歧点：官
+COLMAP 打平"的虚假结论。识别方法：对导出模型与网络原                                                    方为"查询帧像素处查表取网络稠密点图"，本文为"外部 SIFT
+始模型做位姿差统计——若逐位为 0.0000°，说明网络位姿根                                                   内点在冻结位姿下三角化"。
+本没写进去。坑 2：cameras.bin 的 model_id 编号与 3.x 不
+同（实测 1=PINHOLE(4 参数)、2=SIMPLE_RADIAL(4 参数)、
+0=SIMPLE_PINHOLE(3 参数)），按 3.x 编号解析会把 (f , f , c ,
+                                               x y x
+cy) 整体错一位。稳妥做法：按文件大小反推参数个数。坑 3
+：手写模型的 error 字段不可用于自检。model_analyzer 的
+平均重投影读的是存储的 error 字段（手写为 0），自检必须
+用 bundle_adjuster - -max_num_iterations 1 报出的
+Initial cost。此外 bundle_adjuster/point_filtering 的
+output_path 必须预先存在，否则报错并在后续
+point_filtering 处 core dump；point_filtering 的选项不
+带 PointFiltering. 前缀。
+
+附录 B Faster-GS / nerficg 在 CoreX-5.0 上的移植
+要点
+本实验的训练后端是 nerficg 内的 Faster-GS 在天数
+CoreX-5.0 上的移植：(i) 排序内核 sort_radix_by_key 替换
+为 at::sort(stable=true) 两次调用；(ii) glm::fast* 在
+ivcore11 下退化为 std:: 版本（约慢 4.5×，实测非瓶颈，故
+不做位级近似以免破坏黄金比对）；(iii) 关闭 -
+-use_fast_math，并要求训练与评估全程一致；(iv) 修复
+autograd 尾部累加（acc
+
+grad += grad）与 ivcore11 的 numeric_limits<>{::max()}
+/{::lowest()}、::nanf；(v) morton CUDA kernel 在本平台
+
+
+                                                                              7
+表 4 全部 20 个档位的完整留出集结果（同一次干净矩阵重跑：83 帧、训练分辨率缩放 0.25、7000 步、TEST_STEP=8 留出 11 张、RANDOM_SEED=0；每档独
+立 MODEL_NAME 与独立 GPU）。口径 A 使用原始畸变图像，口径 B 各档用自身标定的 k1 去畸变。加粗为本文链路与 COLMAP 参照。最后三行是人为旋转扰
+                                  动的敏感度档位（口径 B，非链路对比档）。
+      档位                 前端配置                               三维初值来源           PSNR    SSIM    LPIPS   高斯数
+
+      口径 A（原始畸变图像）
+
+      cmap_raw           COLMAP 全流程（参照）                     COLMAP SIFT+BA   25.77   0.837   0.234   626616
+      omega              Ω 裸前向（网络点图）                        无（网络点图）          21.35   0.674   0.326   697889
+      omegatri           Ω + 三角化（位姿冻结）                      SIFT 三角化         23.01   0.741   0.290   651023
+      omegatriba         Ω + 三角化 + BA（本文）                   SIFT 三角化+BA      25.79   0.843   0.219   634702
+      omegatriba_vgpts   Ω + BA，但用网络点图初始化                   SIFT 三角化+BA      22.99   0.766   0.264   715366
+      vggt               VGGT 裸前向（网络点图）                     无（网络点图）          19.98   0.596   0.427   635674
+      vggttri            VGGT + 三角化（位姿冻结）                   SIFT 三角化         20.99   0.641   0.372   627185
+      vggttriba          VGGT + 三角化 + BA（本文）                SIFT 三角化+BA      25.10   0.811   0.253   —
+      vggttrilong        VGGT + 三角化 + BA，第 1 轮 300 迭代       SIFT 三角化+BA      25.02   0.811   0.255   622666
+      vggttriba_vgpts    VGGT + BA，但用网络点图初始化                SIFT 三角化+BA      21.90   0.709   0.341   695987
+      vggtgrid           路线 B：自证轨迹（无 BA）                    网络点图自投影          19.99   0.600   0.407   621609
+      vggtgridba         路线 B：自证轨迹 + BA                     网络点图自投影          20.04   0.601   0.403   —
+
+      口径 B（各家自标定 k1 去畸变）
+
+      cmap               COLMAP 全流程（去畸变，参照）                 COLMAP SIFT+BA   26.82   0.877   0.203   477211
+      omegau             Ω 裸前向（去畸变）                         无（网络点图）          21.74   0.706   0.308   665745
+      omegatribau        Ω + 三角化 + BA（去畸变，本文）               SIFT 三角化+BA      26.72   0.875   0.198   —
+      vggtu              VGGT 裸前向（去畸变）                      无（网络点图）          19.30   0.588   0.425   573660
+      vggttribau         VGGT + 三角化 + BA（去畸变，本文）            SIFT 三角化+BA      25.69   0.836   0.236   —
+      cp06               扰动实验：COLMAP 位姿旋转 0.6°              COLMAP SIFT+BA   20.29   0.584   0.399   543342
+      cp13               扰动实验：旋转 1.3°                       COLMAP SIFT+BA   17.55   0.505   0.503   425435
+      cp26               扰动实验：旋转 2.6°                       COLMAP SIFT+BA   16.34   0.482   0.561   340567
+
+
+
+
+                                                        8
+

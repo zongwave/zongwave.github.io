@@ -100,6 +100,7 @@
     <div class="navlinks">
       <a href="#kb">知识库</a>
       <a href="#books">图书</a>
+      <a href="#papers">技术文章</a>
       <a href="#demo">Demos</a>
       <a href="#about">关于</a>
       <a href="https://github.com/zongwave/pixelcraft" target="_blank" rel="noopener">GitHub ↗</a>
@@ -202,6 +203,26 @@
         <div class="foot">
           <a href="https://ebooks.cmpbook.com/detail?id=21729" target="_blank" rel="noopener">📖 在线阅读 / 购买</a>
           <span class="chip">OpenCV DNN</span><span class="chip">性能优化</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="papers" style="background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+  <div class="wrap">
+    <div class="sec-k">Tech Reports</div>
+    <div class="sec-t">技术文章</div>
+    <p class="sec-d">把前馈式神经重建（VGGT / VGGT-Ω / 3DGS）与经典几何管线相结合的系统性实验技术报告。</p>
+    <div class="grid" style="grid-template-columns:1fr">
+      <div class="card book" style="border-left:4px solid var(--a)">
+        <h4>前馈重建前端如何接入 3D 高斯泼溅：VGGT / VGGT-Ω 位姿与内参的一次性束调整精化</h4>
+        <div class="meta">作者：宗炜 · 2026 · 技术报告 · 中英双语摘要</div>
+        <p>延续“VGGT 一次前向 + 外部二维观测 + 一次全局束调整”路线，把相机掉点完整归因于<b>网络位姿与内参、而非初始点云</b>。在同一配置的 83 帧（留出 11 视角）矩阵上：复用生产链路已有的 SIFT 二维观测，在冻结网络位姿下一次三角化 + 全局 BA（含畸变 k₁ 自标定）后，<b>VGGT-Ω 留出 PSNR 从 21.35 提升到 25.79 dB（口径 A）/ 26.72 dB（口径 B）</b>，与 COLMAP 全流程 25.77 / 26.82 dB 打平（LPIPS 更优）；VGGT 收回 +5.12 dB。并给出三条反直觉结论：网络稠密点图接回 3DGS 初始化反而掉 2.8–3.2 dB；用网络自点图自建轨迹做“自证式”BA 与点云误差灵敏度分析的完整实验证据，链路已在国产 AI 加速器（天数 BI-V150S，CoreX-5.0）上验证。</p>
+        <div class="foot">
+          <a href="papers/paper.pdf" target="_blank" rel="noopener">📄 下载 PDF（1.8 MB）</a>
+          <a href="papers/paper.txt" target="_blank" rel="noopener">纯文本版</a>
+          <span class="chip">VGGT</span><span class="chip">Bundle Adjustment</span><span class="chip">3DGS</span>
         </div>
       </div>
     </div>
