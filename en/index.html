@@ -65,6 +65,7 @@
   .card li a:hover{color:var(--a2)}
 
   .book-grid{grid-template-columns:repeat(auto-fit,minmax(420px,1fr))}
+  .kb-grid{grid-template-columns:repeat(2,1fr)}
   .book{display:flex;flex-direction:column;border-left:4px solid var(--a)}
   .book:nth-child(2n){border-left-color:var(--a2)}
   .book h4{font-size:1.15rem;margin-bottom:6px}
@@ -85,6 +86,7 @@
     .navlinks{display:none}
     h1{font-size:2.2rem}
     .book-grid{grid-template-columns:1fr}
+    .kb-grid{grid-template-columns:1fr}
     header{padding:52px 0 44px}
   }
 </style>
@@ -267,7 +269,7 @@
     <div class="sec-t">What's Inside</div>
     <p class="sec-d">Organized by four topics; most pages come in <b>中文 | English</b>.</p>
 
-    <div class="grid">
+    <div class="grid kb-grid">
       <div class="card">
                 <h3>ISP <small>IMAGE SIGNAL PROCESSING</small></h3>
         <p>Camera imaging pipeline: core algorithms and tuning from sensor Raw to viewable images.</p>

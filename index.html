@@ -71,6 +71,7 @@
 
   /* ---------- books ---------- */
   .book-grid{grid-template-columns:repeat(auto-fit,minmax(420px,1fr))}
+  .kb-grid{grid-template-columns:repeat(2,1fr)}
   .book{border-left:4px solid;border-left-color:var(--a);display:flex;flex-direction:column}
   .book:nth-child(2n){border-left-color:var(--a2)}
   .book h4{font-size:1.15rem;margin-bottom:6px}
@@ -88,6 +89,7 @@
     .navlinks{display:none}
     h1{font-size:2.2rem}
     .book-grid{grid-template-columns:1fr}
+    .kb-grid{grid-template-columns:1fr}
     header{padding:52px 0 44px}
   }
 </style>
@@ -270,7 +272,7 @@
     <div class="sec-t">学习笔记</div>
     <p class="sec-d">按四个方向组织，多数页面有 <b>中文 | English</b> 双语版本。</p>
 
-    <div class="grid">
+    <div class="grid kb-grid">
       <div class="card">
                 <h3>ISP 图像信号处理 <small>IMAGE SIGNAL PROCESSING</small></h3>
         <p>相机成像链路：从传感器 Raw 到可视图像的核心算法与调优。</p>
