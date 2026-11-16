@@ -189,7 +189,6 @@
         <div class="meta">Zong Wei · 2026 · Technical Report · bilingual abstract (中英)</div>
         <p>Building on the route "VGGT one-shot forward + external 2D observations + one global BA", the gap is fully attributed to <b>network poses &amp; intrinsics, not the initial point cloud</b>. On an identically configured 83-frame matrix (11 held-out views): reusing the SIFT 2D observations from the production pipeline, one-shot triangulation under frozen network poses + a global BA (with k₁ self-calibration) lifts <b>VGGT-Ω held-out PSNR from 21.35 to 25.79 dB (protocol A) / 26.72 dB (protocol B)</b>, matching the full COLMAP pipeline (25.77 / 26.82 dB) with better LPIPS; VGGT recovers +5.12 dB. Three counter-intuitive conclusions are evidenced: feeding the network's dense point map back into 3DGS initialization actually hurts by 2.8–3.2 dB; self-supervised "self-proof" BA built from network-generated tracks reaches the lowest residual yet degrades the pose; and the full chain is validated on a domestic AI accelerator (Skydium BI-V150S, CoreX-5.0).</p>
         <div class="foot">
-          <a href="../papers/paper.pdf" target="_blank" rel="noopener">Download PDF (3.9 MB)</a>
           <a href="../papers/">Read online</a>
           <span class="chip">VGGT</span><span class="chip">Bundle Adjustment</span><span class="chip">3DGS</span>
         </div>
