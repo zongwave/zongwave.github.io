@@ -1,529 +1,1315 @@
-                    前馈重建前端如何接入 3D 高斯泼溅：
-               VGGT / VGGT-Ω 位姿与内参的一次性束调整精化
-      Bending Feed-forward Reconstruction into 3D Gaussian Splatting:
-     One-shot Bundle Adjustment for VGGT / VGGT-Ω Pose and Intrinsics
-                                                        宗炜
-                                                zongwave@hotmail.com
+     Bending Feed-forward Reconstruction into 3D Gaussian Splatting:
+    One-shot Bundle Adjustment for VGGT / VGGT-Ω Poses and Intrinsics
+                                                              Wei Zong (宗炜)
+                                                           zongwave@hotmail.com
 
-摘 要：前馈式三维重建网络（VGGT、VGGT-Ω）单次前向即可同                            自标定畸变后去畸变，见 §4.3），差距分别为 7.52 dB 与
-时输出相机、深度与稠密点图，其推理速度比基于特征匹配的增量                                5.08 dB。
-式结构恢复（COLMAP）快数倍，因而被认为是可替代后者的重建
-前端。然而当我们把这两类前端接入同一条 3D 高斯泼溅（3DGS）                            关键问题是差距来自哪里。3DGS 的几何初始化有两个来源：
-训练管线并严格控制变量时，前馈网络的结果在留出视角上比                                  位姿与点云。如果差距主要来自点云（网络点更密、含飘点、
-COLMAP 低 4.4–7.5 dB。本文把这一差距完整归因到相机位姿与内                       尺度不一致），那么改进网络点云是主线；如果来自位姿，那
-参而不是初始点云：（i）网络位姿存在相干性系统偏差，旋转残差                               么必须在网络之外引入新的几何约束。我们用两组实验做了二
-            °           °
-中位数 1.29 （VGGT）与 0.54 （VGGT-Ω），而 COLMAP 解之间                  分：
-                °
-的一致性约为 0.04 ；（ii）网络从不估计镜头畸变（k1≡0），焦距
-系统性偏长 +2.6%，使得在原始畸变图像上训练时重投影模型整体                                点云被排除。在同一份BA 精化位姿下，只把 3DGS 的初
-失配。据此我们提出并在国产 AI 加速器（天数 BI-V150S，                             始化从三角化出的 SIFT 点云换成网络稠密点图，PSNR 从
-CoreX-5.0）上验证一条极简精化链路（路线 A）：复用生产链路已                            25.79 dB 掉到 22.99 dB（Ω）与 25.10 dB 掉到 21.90 dB
-有的 SIFT 二维观测，在冻结的网络位姿下做一次三角化，再做一次                             （VGGT）——点云质量确实影响质量，但它不是差距的来
-全局束调整（并夹一轮点过滤），从而同时修复位姿与内参；网络                                 源，反而是网络前端的额外短板。反过来，COLMAP 只用
-自身的稠密点图不参与任何残差。在一个 83 帧、留出 11 视角、共                            32693 个稀疏点就能得到 25.77 dB，说明 3DGS 对初始点
-20 个档位的同配置干净矩阵上：本文链路把 VGGT-Ω 从 21.35 dB                       的稠密度宽容、对几何一致性苛刻。
-提到 25.79 dB（口径 A）与从 21.74 dB 提到 26.72 dB（口径 B）
-，与 COLMAP 全流程的 25.77 dB / 26.82 dB 打平（LPIPS 更优，                位姿被锁定。表 2 显示网络位姿与 COLMAP 参照的旋转
-0.198 vs 0.203）；VGGT 收回 +5.12 dB，残余 -1.13 dB。旋转残              残差中位数为 1.29°（VGGT）/0.54°（Ω）；我们人为把
-差同时降到 0.0701°（Ω）与 0.3212°（VGGT），畸变从无到有（                       COLMAP 位姿旋转扰动 0.6°/1.3°/2.6°，留出 PSNR 从
-k1=-0.0133，参照 -0.0148）。我们进一步给出三条反直觉结论：把                       26.82 dB 掉到 20.29/17.55/16.34 dB（图 3 右）。这条敏
-网络自己的稠密点图接回 3DGS 初始化会损失 2.8–3.2 dB；用网络                        感度曲线正好解释了网络前端的全部掉点幅度。
-自点图自建轨迹做"自证式"束调整虽然重投影残差最低（0.256 px）
-却使位姿更歪（1.29°→1.43°），即束调整的全部收益来自与网络无                          据此，本文不把精力放在"如何修网络点云"，而是研究一个更
-关的独立对应；把第 1 轮束调整迭代上限从 100 降到 30，解逐位相                         朴素的问题：能否用一次性的经典优化，把前馈网络的位姿与
-同而墙钟从 142 s 降到 57 s。最后我们澄清了成本结构：COLMAP                       内参修到与 COLMAP 同一水平？答案是可以，而且做法极简
-的束调整并非单次昂贵，而是被增量式建图反复调用（实测 35 次全                             ：把 COLMAP 内部用于"已有位姿补点"的三角化与束调整搬
-局 +≈81 次局部，累计 ≈97 s，占 mapper 墙钟 53%）；本文把它                    到推理末尾，二维观测直接复用生产链路已经算好的 SIFT 匹
-降级为推理末尾的一次求解，成本线性于观测数，但同时诚实地指
-                                                             配，网络位姿只作为初值。我们在国产 AI 加速器（天数
-出——加上这一步之后，前馈前端的速度优势基本被吃平（VGGT
-                                                             BI-V150S）平台上完整实现了该链路并给出成本分析。
-≈144 s vs COLMAP 149 s；VGGT-Ω ≈211 s）。
-关键词：前馈式三维重建；VGGT；VGGT-Ω；3D 高斯泼溅                              本文贡献：
-；束调整；结构恢复；COLMAP；神经渲染                                         (1) 归因与量化（§5.2）：把前馈前端在 3DGS 上的                   5–6
-                                                              dB 损失归因到相机位姿与内参，并用扰动敏感度曲线、点
- Key words: feed-forward 3D reconstruction; VGGT;             云替换消融、尺度归一实验排除其他解释；指出网络从不
-VGGT-Ω; 3D Gaussian splatting; bundle adjustment;             输出畸变系数（k1≡0）这一结构性缺陷无法靠"改用去畸变
-structure-from-motion; COLMAP; neural rendering               图像"规避，只能由束调整补出。
-                                                              (2) 方法（路线 A，§3）：与官方前馈束调整的实质差别只
-1 引言                                                          在三维初值的来源——不再在查询帧像素处"查表"取网络稠
-3D 高斯泼溅（3DGS）[1] 的重建质量由两件事决定：输入图                              密点图，而是用外部二维轨迹（SIFT 内点）在冻结的网络
-像的覆盖，以及作为优化起点的相机位姿与内参。前者的生产                                   位姿下三角化、重新生成稀疏三维点，随后一次全局 BA（
-标准是 COLMAP[2]：SIFT 提取[5] → 两两匹配与几何校验                          放开焦距与畸变）→ 点过滤 → 再 BA。网络稠密点图既不
-→ 增量式注册 → 反复束调整。这条链路鲁棒但慢，且其失败                                 进入残差，也不作为 3DGS 初始化。它使 VGGT-Ω 与
-模式（视频序列上的注册分裂、弱纹理场景中断、多子模型需                                   COLMAP 打平（26.72 vs 26.82 dB），VGGT 残余 -1.13
-要人工合并）在工程上代价高昂。因此当 VGGT[6]、                                   dB。
-VGGT-Ω[7] 这类前馈网络以"单次前向、亚秒级、同时给出相
-                                                              (3) 对应关系的判决性实验（§3.3）：束调整的收益 100%
-机/深度/点图"的姿态出现时，"把 3DGS 前端换成网络"成为一
-                                                              来自独立于网络的对应。用网络自点图自建 1.91×106 条观
-个自然的工程设想。
-                                                              测做"自证式"BA，代价最高（291 s）、残差最低（0.256
-这个设想在我们的生产链路上被证伪了。表 1 的第一行与第五                                 px）、但位姿更歪（1.29°→1.43°）、k1 连符号都错。这条
-/六行是同一批视频帧、同一份训练配置、同一台机器上的对                                   结论直接否定了"给前馈网络加自监督 BA 精修"的朴素做法。
-照结果：VGGT 裸前向比 COLMAP 低 5.79 dB、VGGT-Ω 低
-4.42 dB（口径 A）；若统一到 COLMAP 的最佳配置（各家
-
-
-                                                         1
-  (4) 成本结构与诚实的净账（§6）：实测 COLMAP 的 BA                min_{K_j,R_j,t_j},{X_p} Σ_p Σ_(j,u)∈ T_p
-                                                                                            (1)
-  墙钟 97 s/占 mapper 53%（35 次全局 + ≈81 次局部调用               ρ(|π(K_j,R_j,t_j,X_p)-x_j,u|^2),
-  ，平均 1 s/次）；本文 BA 第 1 轮在 30 迭代即达到与          其中 Tp 是第 p 个三维点的可见性轨迹，xj, u 是第 j 帧第 u 个
-  100/300 迭代逐位相同的解（57 s vs 142 s）；BA 墙钟线     二维特征观测，π 含畸变模型，ρ 为鲁棒核。式 (1) 的关键结
-  性于观测数（0.27/0.50/1.91 百万观测对应 68/117/291 s）。 构是：只有 T 里的观测产生残差。因此"用哪一来源的对应关
-                                                        p
-  加 BA 之后前馈前端的速度优势基本消失。                      系"完全决定了优化能拿到什么新信息。
-  (5) 可复现性（附录 C）：全部 20 档同配置干净重跑、逐
-  视角数据、脚本与 COLMAP 4.0.4 rig/frame 二进制格式的 3.2 路线 A：冻结位姿三角化 + 一次全局 BA
-  踩坑记录（位姿真正存储在 frames.bin 而非             本文链路只有五步（下面 (a)–(e)，结构对照图 1）：
-  images.bin——我们在早期版本正是踩在此处而得到过一            (a) 网络位姿导出。把 gj, Kj 写成 COLMAP 稀疏模型。此
-  组"虚假打平"的结论，已撤回并在附录中说明识别方法）。               处必须同时改写 frames.bin（COLMAP 4.0 的 rig/frame
-                                                       重构后，位姿真正存储于此，images.bin 中的 (q, t) 为派
-2 相关工作                                                 生量；见附录 A）。
-
-2.1 经典结构恢复与束调整                                         (b) 三角化。colmap point_triangulator 在冻结的位姿与
-                                                       内参下（- -clear_points 1 - -refine_intrinsics 0）
-COLMAP[2] 的增量式建图以"注册一帧、三角化、局部 BA，
-                                                       ，把已有的 SIFT 二维匹配（two_view_geometries 表的
-周期性全局 BA 与重三角化"为骨架；束调整的稀疏求解器与
-                                                       RANSAC 内点）成组射线求交，现场生成三维点与轨迹。
-规模化策略见 Ceres[4] 与近实时 SfM 的 BA-in-the-loop[3]。
-                                                       这一步不改位姿（实测：三角化前后网络旋转残差逐位相
-二维对应来自 SIFT[5] 匹配加本质矩阵/基础矩阵 RANSAC 校
-                                                       同，均为 1.2912°）。
-验。本文把"三角化 + BA"这两个组件从建图循环中拆出来单
-独使用，保留了 COLMAP 的求解器与数据格式，但删掉了"                         (c) 一次全局 BA。bundle_adjuster 放开位姿、焦距与畸
-增量注册 + 反复 BA"的整个循环。                                    变（refine_focal_length=1, refine_extra_params=1）
-                                                       ，迭代上限 30。
-2.2 前馈式重建                                              (d)   点过滤。point_filtering   -   -max_reproj_error   4
-VGGT[6] 用交替注意力的 Transformer 一次前向预测相机、                  - -min_tri_angle 1.5。
-深度、点图与轨迹；VGGT-Ω[7] 进一步用单一稠密预测头、
-                                                       (e) 再 BA + 再过滤。第二轮 50 迭代内即 CONVERGENCE。
-寄存器注意与自监督协议扩展规模。DUSt3R[8] 等成对/多视
-图点图方法属于同一大类。我们核查了 VGGT-Ω 论文与官方                       与官方前馈束调整的实质差别：Xp 从哪里来 VGGT 官方的 -
-仓库：其推理阶段没有束调整，"bundle adjustment"仅出现在                -use_ba（demo_colmap.py + np_to_pycolmap.py）也是"外部
- §3.5.2 的数据标注管线中，且对应关系由外部算法（SIFT、                    二维轨迹 + pycolmap 求解"的三段式，但它喂给式 (1) 的三维
-SuperPoint+SuperGlue[9]、ALIKED+LightGlue[10]、        初值 Xp 是按像素查表得来的：在查询帧的 2D 关键点 (u, v)
-VGGSfM Tracker[12]）提供，网络输出只在 RANSAC 内点               处直接取 points_3d[img][v][u]（网络输出的是稠密逐像素
-不足时用于初始化。VGGT(v1) 官方 demo_colmap.py 的 -              点图，故任意像素必可取到，不需要反投影搜索），其余帧的
--use_ba 同样是"网络给三维点 + 外部关键点/轨迹给对应 +                    2D 观测由外部追踪器补齐，再用 Point2D(xy,
-pycolmap 求解"的三段式，并在注释中明确允许把                          point3D_id) + Track 登记成关联图。这条做法的结构性后果
-pred_tracks 换成 COLMAP/LightGlue/LoFTR[11] 的轨迹。       是：Xp 的误差与深度头误差同分布，残差里不含任何独立于
-本文的工作可视为把这条原本属于标注侧的链路搬到推理侧，                          深度的几何信息，BA 无法把它拉回正确位置；其质量闸门也
-并量化它对下游 3DGS 的价值。                                    只有置信度阈值（conf>1.2）与一次投影预筛（8 px）两道软
-                                                     门。本文把这一步整体替换为三角化：Xp 由"冻结的网络位姿
-2.3 3DGS 与几何先验                                       + 外部 SIFT 内点的射线求交"生成，深度头完全不进入 Xp，
-3DGS[1] 以各向异性高斯为基元做可微光栅化；                            并继承 COLMAP 的三道硬闸门（两视图 RANSAC 内点、
-Faster-GS[13] 在保持高斯数与质量不变的前提下优化其求解                   tri_min_angle 射线夹角、point_filtering 的重投影误差/
-流程，本文的训练后端即其在本平台（天数 CoreX）的移植版                       三角化角剔除）。网络在官方链路里是"被观测的对象"，在本
-本（移植要点见附录 B）。已有工作与我们的观察一致：                           文链路里只是"射线的摆放"，即优化初值。这一替换在表 1 中
-3DGS 的致密化/剪枝阈值隐含依赖真实米制尺度与准确位姿                        可单独计价：omega→omegatri 仅改变 Xp 的来源（位姿仍冻
-，位姿误差会被致密化过程"用高斯糊住"，从而在训练视角看                         结）即得 +1.66 dB、vggt→vggttri 得 +1.01 dB；随后放开
-似拟合、留出视角崩塌——这正是我们观测到的"训练集                            位姿与内参的 BA 再贡献 +2.78 dB/+4.11 dB。反向证据同样
-SSIM 最高而留出 PSNR 最低"现象。                               成立：把网络稠密点图 graft 进 3DGS 初始化反而损失
-                                                     2.80/3.20 dB（§5.3）。
-3 方法                                                 为什么不需要把二维观测"关联"到网络三维点 式 (1) 需要的是"
-                                                     三维点 ↔ 二维观测"的对应，而这些三维点不必是网络的点。
-3.1 记号与问题设定                                          步骤 (b) 在网络位姿张开的射线束里重新生成三维点，于是三
-给定 N 帧图像（本文 N=83）。前馈网络输出每帧相机                         维点与二维观测天生同标架、同尺度，无需任何配准；网络在
-gj=(Rj, tj)、内参 Kj（含焦距 fj、主点 cj，畸变恒为 0）与稠密            这里的角色是射线的摆放（Rj, tj, Kj），即优化初值，而非被
-点图 {Xi}、置信度 ci。COLMAP 类管线则给出稀疏三维点集合                  观测的对象。反之，若要把网络稠密点与 SIFT 观测挂接（路
-与二维观测。束调整求解                                          线 C），需按 |π(Kj, gj, Xi)-k|<r 做互近邻挂接，此时信息量天
-                                                     花板由 SIFT 匹配数决定（本文 ≈3035 观测/帧），与路线 A
-                                                     白送的观测数几乎相同，却把网络自身的深度误差（AbsRel
+Abstract: Feed-forward reconstruction networks (VGGT, VGGT-Ω)                 VGGT-1B's -6.3 dB raw deficit on the control clip to -0.28 dB; on a
+produce cameras, depth and dense point maps in a single forward               hand-held orbit video the COLMAP reference collapses silently —
+pass, several times faster than feature-matching-based incremental            42 singular-Cholesky failures inside 30 global BA rounds,
+structure-from-motion (COLMAP), and are therefore advertised as               per-frame camera steps with cv=4.12 against the ≈1/N floor that
+a drop-in replacement for the reconstruction front-end. When we               uniform sampling imposes — while our chain registers every frame
+plug both kinds of front-end into the same 3D Gaussian splatting              in 178 s against 692 s. Because held-out PSNR cannot arbitrate
+(3DGS) training pipeline under strictly controlled settings, the              such a case, we score both candidates against SIFT two-view inlier
+feed-forward results lose 4.4–7.5 dB on held-out views. We trace              pairs that neither reconstruction produced, and 82.9% of that
+most of this gap to camera pose and intrinsics; the initial point             shared evidence sides with our chain, which is worth +2.71 dB
+cloud is a second, independent and smaller weakness rather than               downstream. The fourth clip is the control we report deliberately: 0
+the origin of the measured loss: (i) network poses carry a coherent           solver failures, a quality tie (+0.09 dB) and no speed advantage.
+                                                            °
+systematic bias, with a median rotation residual of 1.29 (VGGT)               Finally we clarify the cost structure: COLMAP's BA is not expensive
+            °                            °
+and 0.54 (VGGT-Ω) against a ≈0.04 agreement among COLMAP                      per call but is invoked repeatedly by incremental mapping
+solutions; (ii) the networks never estimate lens distortion (k1≡0)            (measured: 35 global plus ≈81 local calls, ≈97 s in total, 53% of the
+and over-estimate the focal length by +2.6% on average, so the                mapper's wall clock); we demote it to a single solve at the end of
+whole reprojection model is misspecified when training on the raw             inference, whose cost is linear in the number of observations —
+distorted images. We therefore propose, and validate on a                     and we report the net bill rather than a favourable comparison: on
+domestic AI accelerator (Iluvatar BI-V150S, CoreX-5.0), a minimal             this sequence the refinement removes the front-end's speed
+refinement chain (route A): reusing the SIFT observations that a              advantage (VGGT ≈144 s vs. COLMAP 149 s; VGGT-Ω ≈211 s),
+production pipeline has already computed, we triangulate under the            so what the chain buys is a predictable post-processing cost and a
+frozen network poses and run a single global bundle adjustment                complete camera trajectory when incremental registration splits,
+(with one round of point filtering in between), which repairs poses           not raw speed.
+and intrinsics simultaneously; the network's own dense point map
+                                                                              Keywords: feed-forward 3D reconstruction; VGGT;
+never enters any residual. On an 83-frame sequence with 11
+                                                                              VGGT-Ω; 3D Gaussian splatting; bundle adjustment;
+held-out views and a clean matrix of 20 identically configured arms,
+our chain lifts VGGT-Ω from 21.35 dB to 25.79 dB (protocol A) and             structure-from-motion; COLMAP; neural rendering
+from 21.74 dB to 26.72 dB (protocol B), matching the COLMAP
+reference at 25.77 dB/26.82 dB (better LPIPS, 0.198 vs 0.203);                1 Introduction
+VGGT recovers +5.12 dB and retains a residual of -0.67 dB
+                                                                              The quality of 3D Gaussian splatting (3DGS)[1] is decided by
+(protocol A) / -1.13 dB (protocol B). Rotation residuals drop to
+                                                                              two things: the coverage of the input images, and the camera
+0.0701° (Ω) and 0.3212° (VGGT), and a distortion coefficient is
+recovered through the joint optimization (k1=-0.0133 vs. a                    poses and intrinsics that serve as the starting point of the
+reference of -0.0148). We further report three counter-intuitive              optimization. The production standard for the former is
+findings: plugging the network's dense point map back into the                COLMAP[2]: SIFT extraction[5] → pairwise matching with
+3DGS initialization costs 2.8–3.2 dB; BA driven by self-generated             geometric verification → incremental registration → repeated
+correspondences — 1.91×106 tracks built from the network's own                bundle adjustment. The chain is robust but slow, and its
+point map — reaches the lowest reprojection residual (0.256 px)               failure modes on video sequences (registration splits,
+yet makes the poses worse (1.29°→1.43°), so in our experiments
+                                                                              breakdown in weakly textured scenes, several sub-models
+the improvement produced by BA depends on correspondences
+                                                                              that have to be merged by hand) are expensive in practice.
+that are independent of the network; and capping the first BA round
+at 30 iterations instead of 100 yields a bit-identical solution in 57 s
+                                                                              So when feed-forward networks such as VGGT[6] and
+instead of 142 s. The main table is a deliberately chosen floor               VGGT-Ω[7] appeared “one forward pass, sub-second,
+setting (0.25 resolution /7000 steps); raising the 3DGS training tier         cameras plus depth plus point maps”, replacing the 3DGS
+to 0.5/20000 and to native-resolution 1.0/30000 leaves our chain              front-end by a network became a natural engineering idea.
+within 0.9 dB of COLMAP at every tier (Ω: +0.02, -0.07, -0.07 dB),
+                                                                              On our production pipeline the idea is falsified. Row 1 versus
+whereas the raw forward pass stays 4.5–7.0 dB behind at every
+                                                                              rows 5 and 6 of Table 1 are the same video frames, the same
+tier, so the conclusion is not a floor-setting artefact. Union-fusing
+the network dense points with the SIFT points as the 3DGS                     training configuration and the same machine: the bare VGGT
+initialization is again worse than pure SIFT (-0.45 to -1.13 dB, +77%         forward pass is 5.79 dB below COLMAP and the bare
+Gaussians). Every qualitative conclusion replicates on a second               VGGT-Ω forward pass 4.42 dB below (protocol A); if
+independent 191-frame video (BA arms within -0.26/-0.58 dB of the             everything is brought to COLMAP's best configuration (each
+same-scene reference, raw forward still 2.3/3.8 dB behind). Pricing           front-end undistorts with its own k1, §4.3), the gaps become
+the refinement stages separately, one global BA round is already              7.52 dB and 5.08 dB.
+sufficient for the Ω front-end (25.84 dB), whereas for the VGGT
+front-end — which has fewer independent correspondences —
+outlier filtering alone is harmful (-0.42 dB) and pays off only when
+paired with a following second BA round (net +0.29 dB). Two
+further clips on an NVIDIA L20 extend the replication to four scenes
+and to both front-end networks, where the same chain closes
 
 
-                                                 2
-图 1 三条链路的结构与实测墙钟（83 帧，同一台 16×BI-V150S）。第一行 COLMAP 保留"穷举匹配 + 增量建图 + 反复 BA"；第二行前馈网络删掉对应关系
-            与优化，也因此删掉了内参与畸变的估计能力；第三行本文只借 COLMAP 的"三角化 + 一次 BA"两个组件。
+                                                                          1
+The decisive question is where the gap comes from. 3DGS                   suspect we add an arbitration computed from two-view
+geometry has two inputs: poses and points. If the gap were                SIFT inliers that uses neither reconstruction (§5.9), which
+mostly caused by the points (network points are denser,                   is what lets us report a scene where COLMAP loses
+contain floaters, have inconsistent scale), improving the                 without resting the claim on PSNR.
+network point cloud would be the main line of work; if it                 (2)     Geometric     refinement     with      independent
+comes from the poses, one has to introduce geometry that is               correspondences (route A, §3): we triangulate under
+external to the network. We separate the two with two                     frozen network poses from the SIFT inliers a production
+experiments:                                                              pipeline has already computed, then run one global BA
+   Points are not the main cause. Under exactly the same                  that frees pose, focal length and the distortion coefficients
+  BA-refined poses, only swapping the 3DGS initialization                 the network never outputs (k1≡0), with a filtering round
+  from the triangulated SIFT cloud to the network dense                   and a second BA. This lifts VGGT-Ω to 26.72 dB against a
+  point map drops PSNR from 25.79 dB to 22.99 dB (Ω) and                  26.82 dB reference and leaves VGGT -1.13 dB behind.
+  from 25.10 dB to 21.90 dB (VGGT) — point-cloud quality                  The control is part of the contribution (§3.3): BA with
+  does matter, but it is not the source of the measured gap;              self-generated correspondences attains the lowest
+  it is an additional weakness of the feed-forward front-end.             reprojection residual (0.256 px) yet neither improves the
+  Conversely COLMAP reaches 25.77 dB with only 32693                      poses nor improves held-out quality, which is why we
+  sparse points: 3DGS is tolerant of sparse initialization and            attribute the observed improvement to the independent
+  intolerant of geometric inconsistency.                                  correspondences rather than to the optimisation per se.
+   Poses are pinned down. Table 2 shows median rotation                   (3) Engineering and cost analysis (§6, appendix E): the
+  residuals of 1.29° (VGGT) and 0.54° (Ω) against the                     chain runs end-to-end on a non-NVIDIA accelerator
+  COLMAP reference; when we instead perturb the                           (Iluvatar CoreX-5.0; port in appendix B). We price
+  COLMAP poses by 0.6°/1.3°/2.6°, held-out PSNR                           COLMAP's BA (97 s = 53% of the mapper, 35 global plus
+  collapses from 26.82 dB to 20.29/17.55/16.34 dB (right                  ≈81 local calls), our own rounds (a bit-identical solution
+  panel of Fig. 4). The sensitivity curve shows how little pose           already at 30 iterations: 57 s instead of 142 s) and the
+  error 3DGS tolerates, which is what makes pose the prime                linear dependence on the number of observations, and we
+  suspect; on its own it does not quantify the measured loss,             report the net bill instead of a favourable comparison.
+  because the injected perturbations are independent from                 Everything is reproducible: 20 identically configured clean
+  frame to frame while network pose errors are spatially                  re-runs, per-view data and the scripts, plus a post-mortem
+  coherent, and the two have different structure (§7).                    on COLMAP 4.0.4's rig/frame binary format (poses really
+We therefore do not try to “fix the network point cloud”. We              live in frames.bin, not images.bin) that also documents a
+ask a more modest question: can a single classical                        spurious “parity with COLMAP” result from an early
+optimization bring the poses and intrinsics of a                          version, which we withdraw.
+feed-forward network to COLMAP level? The answer is
+yes, and the procedure is minimal: move the triangulation               2 Related work
+and bundle adjustment that COLMAP normally uses inside
+                                                                        2.1 Classical structure-from-motion and bundle
+mapping to the end of inference, take the 2D observations
+                                                                        adjustment
+from the SIFT matches that a production pipeline has already
+computed, and use the network poses as the initialization               The incremental mapper of COLMAP[2] is built around
+only. We implement the chain end-to-end on the Iluvatar                 “register one image, triangulate, local BA, periodic global BA
+BI-V150S platform and give a cost analysis.                             and re-triangulation”; sparse solvers and scaling strategies
+                                                                        for BA are described in Ceres[4] and in near-real-time SfM
+Terminology. By one-shot refinement we mean a single
+                                                                        with BA in the loop[3]. The 2D correspondences come from
+post-processing stage that runs after feed-forward inference
+                                                                        SIFT[5]      matching    with    essential/fundamental-matrix
+— in place of the triangulation and BA that COLMAP
+                                                                        RANSAC verification. We lift the two components
+interleaves with incremental registration — and not a single
+                                                                        “triangulation” and “BA” out of the mapping loop, keep
+invocation of the BA solver. The stage consists of
+                                                                        COLMAP's solver and data formats, and delete the entire
+triangulation, one global BA, one round of outlier filtering and,
+                                                                        “incremental registration + repeated BA” loop.
+where that pays, a second BA round (§3).
+Contributions:                                                          2.2 Feed-forward reconstruction
+  (1) Downstream quality evaluation (§4, §5.1, §5.7):                   VGGT[6] predicts cameras, depth, point maps and tracks in a
+  under one fixed 3DGS training and evaluation setting we               single transformer forward pass with alternating attention;
+  quantify how far the raw outputs of VGGT and VGGT-Ω sit               VGGT-Ω[7] scales this up with a single dense prediction
+  behind a COLMAP baseline (4.4–7.5 dB on held-out                      head, register attention and a self-supervised protocol.
+  views), and we show that the ordering of the front-ends               DUSt3R[8] and related pairwise/multi-view point-map
+  survives three further independent scenes and three                   methods belong to the same family. We checked the
+  training tiers, so the numbers are not an artefact of one             VGGT-Ω paper and the official repositories: there is no
+  clip or one compute budget. Where the reference is itself             bundle adjustment at inference time; “bundle adjustment”
+                                                                        appears only in the data-annotation pipeline (§3.5.2), where
 
 
-0.01–0.06）焊死在 Xp 的初值里，并额外引入约 25% 的 BA            4 实验设置
-尺度漂移需要处理。故未采纳。
-                                                 4.1 平台与实现
-网络稠密点图的正确位置 BA 结束后，我们用 BA 前后相机中
-心集合的 Umeyama 相似变换把网络点图整体搬进 BA 世界系                全部实验在 root@10.9.11.38 的一台 16× 天数 BI-V150S（
-，并以轨迹长度 0 写入模型（track_len=0 ⇒ 零残差 ⇒ 在雅            每卡 32GB，ixsmi 监控）服务器上完成，软件栈为
-可比矩阵中连列都没有），仅作为 3DGS 初始化的候选。实                    CoreX-5.0.0（CUDA 10.2 兼容层）+ PyTorch 2.10（CoreX
-验（§5.3）表明这条路不该走：它使 PSNR 下降 2.8–3.2 dB。           构建）。SfM 工具为自编译 COLMAP 4.0.4（Commit
-                                                 65e6439e，CUDA/ivcore11）；3DGS 训练后端为 nerficg 框
-3.3 路线 B：自证式轨迹为何无效                               架内的 Faster-GS[13]（本平台移植见附录 B）；前端为官方
-为检验"是否必须有外部对应"，我们构造了对照组：以网络点                     VGGT-1B（bf16，518 裁剪）与 VGGT-Ω-1B（fp32，512
-图反投影出的三维点为 Xp，把每帧点图按相对深度互检（                      balanced）。全部评测指标中 LPIPS 使用 VGG 权重。
-≤2%）与置信度分位阈值投影到其它帧，自建 ∼1.91×106 条
-                                                 4.2 数据、留出协议与训练配置
-观测（202883 个点，均轨迹长 9.4）。这组观测与网络位姿
-完全自洽，初始代价 3.385 px（因写盘标架误差而偏高，但                  数据为一段行车视频的抽帧序列 c6183bb30c62，83 帧
-BA 会自行消化），BA 后降到 0.256 px 并 CONVERGENCE——        1920×1080。训练分辨率缩放 0.25（480×270）；按文件名
-残差全场最低。然而位姿旋转残差从 1.2912° 升到 1.4296°，             每 8 帧留 1 帧作测试（TEST_STEP=8），即 11 张留出、72 帧
-k1 估成 +0.0010（真值 -0.0148，符号即错），留出 PSNR 只         训练；训练 7000 步、RANDOM_SEED=0、其余超参取默认。所
-涨 0.05 dB（19.99→20.04，噪声级）。                      有 20 个档位共用同一批图像、同一份训练配置与同一随机种
-                                                 子，只有"位姿/内参/初始点云从何而来"这一个变量。
-机理解释：束调整是"用二维观测约束三维几何"的机制，其信
-息全部来自二维观测独立于当前三维与位姿估计的那部分。当                      4.3 两种质量口径
-观测由位姿与深度自身投影生成时，目标函数在当前解处已近
-                                                 前馈网络输出 k1≡0，而 COLMAP 的 SIMPLE_RADIAL 解给
-乎最优，梯度只把解往"更自洽"而不是"更正确"的方向推；而
-                                                 出 k1=-0.0148。如果所有档位都用 COLMAP 的去畸变图像，
-自洽性本身对尺度、朝向乃至整体畸变都不敏感（gauge 自由
-                                                 那么网络档位的像素与其自身模型假设不一致（图像已被
-度），于是优化反而放大了系统性偏差。工程结论：任何"网
-                                                 COLMAP 的 k1 弯过一次）；如果都用原始畸变图，则网络档
-络自监督 BA"都必须引入独立对应（SIFT/LoFTR/光流/IMU/
-                                                 位缺少畸变项。为避免口径偏袒，我们两种都报：口径 A：全
-帧序先验）。
-                                                 部使用原始畸变图像（SIMPLE_RADIAL 模型，1920×1080）
-                                                 ；口径 B：各档用自己标定的 k1 做 image_undistorter 去畸
-3.4 成本结构：一次性 BA vs 反复 BA
-                                                 变（网络档位用其 BA 后估出的 k1），即 COLMAP 生产链路
-表 3 与图 7 给出三种"BA 很贵"的不同含义。（i）COLMAP              的真实口径。本文标题性结论在两种口径下都成立，且口径
-的 BA 贵在被反复调用：默认 mapper 184 s，把 BA 迭代上
-                                                 B 更能反映生产可比性。
-限设为 0/1 并放宽函数容差后为 87 s，两者差 ≈97 s 即 BA
-在 mapper 内的真实占比（53%），来自 35 次全局 BA 与约             4.4 数据卫生：一次干净矩阵重跑
-81 次局部 BA 的累计，平均 1 s/次；同时平均重投影从
-                                                 早期结果存在两处归属风险：（1）部分档位的输出目录同名
-1.648 px 降到 0.565 px，说明这 97 s 买到的是几何精度本身。
-                                                 （配置里的 MODEL_NAME 未随档位改写）；（2）数据集目录
-（ii）我们的单次 BA 反而比整个"无 BA 的 mapper"更久（
-                                                 在中途被重建过，导致同名档位在前后两次评测中指向不同数
-136 s vs 87 s），因为它第一轮就作用在全部 503770 条残差
-                                                 据。为此我们重跑了整个矩阵：每档独立 MODEL_NAME、每档
-上。（iii）但我们的调用次数是 2，且成本线性于观测数（
-                                                 独占一张 GPU、同一波次并发、逐档独立日志，并把
-0.27/0.50/1.91 百万观测 →68/117/291 s），因此规模增长可
-                                                 PSNR/SSIM/LPIPS、逐视角 PSNR、高斯数、墙钟一并落盘。
-预测，且不存在"多子模型/注册失败重试"这一不可预算项。
-                                                 本文所有数字来自这一次干净重跑；重跑与独立早期结果的偏
+                                                                    2
+the correspondences are provided by external algorithms                      the 3D points and their tracks. Poses do not change
+(SIFT, SuperPoint+SuperGlue[9], ALIKED+LightGlue[10],                        (measured: the rotation residual before and after
+VGGSfM Tracker[12]) and the network output is used only to                   triangulation is bit-identical, 1.2912°).
+initialize cases with too few RANSAC inliers. The official                   (c) One global BA. bundle_adjuster with poses, focal
+VGGT(v1) demo_colmap.py with - -use_ba is likewise a                         length and distortion free (refine_focal_length=1,
+three-stage “network 3D points + external keypoints/tracks +                 refine_extra_params=1), iteration cap 30.
+pycolmap solve”, and its comments explicitly allow
+pred_tracks to be replaced by
+                                                                             (d)      Point       filtering.     point_filtering         -
+                                                                             -max_reproj_error 4 - -min_tri_angle 1.5.
+COLMAP/LightGlue/LoFTR[11] tracks. Our work moves that
+annotation-side chain to the inference side and quantifies                   (e) BA again + filter again. The second round reaches
+what it is worth downstream in 3DGS.                                         CONVERGENCE within 50 iterations.
+
+                                                                           The real difference to the official feed-forward BA: where
+2.3 3DGS and geometric priors
+                                                                           Xp comes from The official - -use_ba of VGGT
+3DGS[1] rasterizes anisotropic Gaussians differentiably;                   (demo_colmap.py + np_to_pycolmap.py) is also a three-stage
+Faster-GS[13] optimizes the optimization procedure of 3DGS                 “external 2D tracks + pycolmap solve”, but the 3D
+at unchanged Gaussian count and quality, and its port to our               initialization it feeds into Eq. (1) is obtained by looking up
+platform (Iluvatar CoreX) is the training backend used here                the dense point map per pixel: at the query-frame keypoint
+(porting notes in appendix B). Earlier work agrees with our                pixel (u, v) it takes points_3d[img][v][u] directly (the
+observation: the densification/pruning thresholds of 3DGS                  network output is a dense per-pixel point map, so every pixel
+implicitly assume metric scale and accurate poses, and pose                can be read and no back-projection search is needed); the
+error is “stuck over” by densification, so that the training               2D observations in the remaining frames are filled in by an
+views look fitted while held-out views collapse — exactly the              external tracker, and the association graph is registered with
+“highest training SSIM, lowest held-out PSNR” pattern we                   Point2D(xy,         point3D_id) + Track. The structural
+observe.                                                                   consequence is that the error of Xp is co-distributed with the
+                                                                           depth-head error, so the residual contains no geometric
+3 Method                                                                   information independent of depth and BA cannot pull Xp back
+                                                                           to the correct place; its only quality gates are soft: a
+3.1 Notation and problem statement                                         confidence threshold (conf>1.2) and one projection pre-filter
+Given N images (here N=83). A feed-forward network outputs                 (8 px). We replace this step wholesale by triangulation: Xp is
+per-frame cameras gj=(Rj, tj), intrinsics Kj (focal length fj,             generated by “frozen network poses + ray intersection of
+principal point cj, distortion identically 0), a dense point map           external SIFT inliers”, the depth head never enters Xp, and
+{Xi} with confidence ci. A COLMAP-style pipeline instead                   we inherit three hard gates from COLMAP (two-view
+outputs a sparse 3D point set together with 2D observations.               RANSAC inliers, tri_min_angle, and point_filtering on
+Bundle adjustment solves                                                   reprojection error / triangulation angle). In the official chain
+         min_{K_j,R_j,t_j},{X_p} Σ_p Σ_(j,u)∈ T_p                          the network is the object being observed; in ours it is merely
+                                                             (1)           the arrangement of the rays, i.e. the initialization. The
+             ρ(|π(K_j,R_j,t_j,X_p)-x_j,u|^2),
+where Tp is the visibility track of 3D point p, xj, u is the u-th 2D       substitution can be priced separately in Table 1:
+                                                                           omega→omegatri changes only the source of X (poses still
+feature observation in frame j, π includes the distortion model                                                               p
+
+and ρ a robust kernel. The key structural fact of Eq. (1) is that          frozen) and gains +1.66 dB; vggt→vggttri gains +1.01 dB.
+only the observations inside Tp generate residuals.                        Freeing poses and intrinsics in BA then adds +2.78 dB/+4.11
+Hence which source of correspondence is used fully                         dB. The converse evidence holds as well: grafting the
+determines what new information the optimization can                       network dense point map into the 3DGS initialization costs
+acquire.                                                                   2.80/3.20 dB (§5.3).
+                                                                           Why 2D observations need no “association” to network
+3.2 Route A: triangulation with frozen poses + one                         3D points Eq. (1) needs an association between 3D points
+global BA                                                                  and 2D observations — and those 3D points do not have
+Our chain has five steps (Fig. 1):                                         to be the network's. Step (b) regenerates the 3D points
+                                                                           inside the ray bundle opened by the network poses, so 3D
+   (a) Export network poses. Write gj, Kj into a COLMAP
+                                                                           points and 2D observations share frame and scale by
+   sparse model. One must rewrite frames.bin as well: after
+                                                                           construction and no registration is needed; the network here
+   the rig/frame refactor in COLMAP 4.0 the poses really live
+                                                                           provides the arrangement of the rays (Rj, tj, Kj), i.e. the
+   there and the (q, t) in images.bin are derived quantities
+                                                                           initialization, not the thing being measured. Conversely,
+   (appendix A).
+                                                                           attaching the network dense points to the SIFT observations
+   (b) Triangulation. colmap point_triangulator, with                      (route C) requires mutual nearest-neighbour linking under
+   poses and intrinsics frozen (- -clear_points 1 -                        |π(Kj, gj, Xi)-k|<r; then the information ceiling is set by the
+   -refine_intrinsics 0), intersects the rays of the already               number of SIFT matches (≈3035 observations per frame
+   available SIFT 2D matches (RANSAC inliers in the                        here), essentially the same number route A gets for free,
+   two_view_geometries table) and generates on the spot                    while the network's own depth error (AbsRel 0.01–0.06) is
+
+
+                                                                       3
+ Figure 1 The three chains and their measured wall clocks (83 frames, one 16×BI-V150S node). Top: COLMAP keeps “exhaustive matching + incremental
+ mapping + repeated BA”. Middle: the feed-forward network deletes correspondence and optimization — and with them the ability to estimate intrinsics and
+          distortion. Bottom: ours borrows only two components from COLMAP, “triangulation + one BA” (numbers refer to the VGGT front-end).
+
+
+welded into the initialization of Xp and an extra ≈25% BA                      Mechanism: bundle adjustment is a mechanism that
+scale drift has to be handled. We therefore did not adopt it.                  constrains 3D geometry with 2D observations, and all of its
+Where the network dense point map does belong After                            information comes from the part of the observations that is
+BA we transport the whole network point map into the BA                        independent of the current 3D and pose estimate. When the
+world frame with the Sim3 obtained from the camera-center                      observations are generated by projecting the poses and
+sets before/after BA, and write it into the model with track                   depths themselves, the objective is already near-optimal at
+length 0 (track_len=0 ⇒ zero residual ⇒ it does not even                       the current solution and the gradient pushes towards “more
+get a column in the Jacobian), purely as a candidate for                       self-consistent”, not “more correct”; self-consistency itself is
+3DGS initialization. Experiments (§5.3) show this road should                  insensitive to scale, orientation and even global distortion
+not be taken: it costs 2.8–3.2 dB.                                             (gauge freedoms), so the optimization amplifies the
+                                                                               systematic bias. Engineering conclusion: any
+3.3 Route B: BA with self-generated                                            “self-supervised network BA” must introduce independent
+correspondences                                                                correspondence (SIFT/LoFTR/optical flow/IMU/temporal
+                                                                               priors).
+To test whether external correspondence is really necessary
+we build a control: take Xp from the network point map,
+                                                                               3.4 Cost structure: one-shot BA versus repeated BA
+project each frame's point map onto the other frames with
+relative-depth mutual checking (≤2%) and a confidence                          Table 9 and Fig. 13 separate three different meanings of “BA
+quantile     threshold,     and    self-generate     ∼1.91×106                 is expensive”. (i) COLMAP's BA is expensive because it is
+observations (202883 points, mean track length 9.4). These                     called repeatedly: the default mapper takes 184 s; with the
+observations are perfectly self-consistent with the network                    BA iteration cap set to 0/1 and a looser function tolerance it
+poses; the initial cost is 3.385 px (inflated by a bookkeeping                 takes 87 s; the ≈97 s difference is BA's true share inside the
+frame error that BA digests itself) and drops to 0.256 px after                mapper (53%), accumulated from 35 global and ≈81 local
+BA with CONVERGENCE — the lowest residual of all. And yet the                  calls, 1 s on average; over the same period the mean
+median pose rotation residual grows from 1.2912° to 1.4296°,                   reprojection error falls from 1.648 px to 0.565 px, i.e. those
+k1 is estimated as +0.0010 while the COLMAP reference is                       97 s buy geometric accuracy itself. (ii) Our single BA is
+-0.0148, i.e. the sign is wrong, and held-out PSNR gains only                  slower than the whole BA-free mapper (136 s vs 87 s),
+0.05 dB (19.99→20.04, within the observed run-to-run                           because its first round already operates on all 503770
+variation).                                                                    residuals. (iii) But we call it twice, and the cost is linear in the
+                                                                               number of observations (0.27/0.50/1.91 million → 68/117/291
+                                                                               s), so growth is predictable and there is no un-budgetable
+                                                                               “sub-models / failed-registration retries” term.
+
+                                                                               4 Experimental setup
+
+                                                                               4.1 Platform and implementation
+                                                                               All experiments run on a server with 16 Iluvatar BI-V150S
+                                                                               cards (32GB each, monitored with ixsmi) at
+                                                                               root@10.9.11.38, software stack CoreX-5.0.0 (CUDA-10.2
+                                                                               compatibility layer) + PyTorch 2.10 (CoreX build). SfM tool:
+                                                                               self-compiled COLMAP 4.0.4 (commit 65e6439e,
+
+
+                                                                           4
+CUDA/ivcore11). 3DGS backend: Faster-GS[13] inside the                independent earlier results are within ±0.3 dB, which is the
+nerficg framework (port: appendix B). Front-ends: official            run-to-run variation we observe at fixed seed.
+VGGT-1B (bf16, 518 crop) and VGGT-Ω-1B (fp32, 512
+balanced). LPIPS always uses VGG weights. The full pipeline           5 Results
+is later reproduced verbatim on an NVIDIA L20 (CUDA)
+platform with identical configuration; appendix C reports the         5.1 Main results
+cross-platform agreement.                                             Table 1 and Fig. 2 give all arms. Three observations.
+                                                                      (1) The feed-forward front-ends really lose a lot. In
+4.2 Data, held-out protocol and training configuration
+                                                                      protocol A the bare VGGT forward pass reaches 19.98 dB
+The data is the extracted frame sequence c6183bb30c62 of
+                                                                      and bare VGGT-Ω 21.35 dB against 25.77 dB for the
+one driving video: 83 frames at 1920×1080. Training
+                                                                      COLMAP reference; in protocol B they reach 19.30/21.74 dB
+resolution scale 0.25 (480×270); every 8th frame by file name
+                                                                      against 26.82 dB. Ω is consistently better than VGGT (its
+is held out (TEST_STEP=8), i.e. 11 test and 72 training frames;
+                                                                      pose residual is smaller to begin with: 0.54° vs 1.29°).
+7000      training    steps,     RANDOM_SEED=0,       remaining
+hyper-parameters at their defaults. All 20 arms share the             (2) One refinement stage closes the gap. Protocol A: Ω
+same images, the same training configuration and the same             rises from 21.35 dB to 25.79 dB (+4.44 dB), surpassing the
+seed: the only variable is where poses/intrinsics/initial             COLMAP reference by 0.02 dB; VGGT rises from 19.98 dB to
+points come from. Following the usual SfM/3DGS                        25.10 dB (+5.12 dB), residual -0.67 dB. Protocol B: Ω
+convention, the front-end of every arm — matching, network            21.74→26.72 dB (+4.98 dB), 0.10 dB behind COLMAP's
+forward pass, triangulation and BA — sees all 83 frames               26.82 dB with better LPIPS (0.198 vs 0.203) and essentially
+including the 11 held-out ones (the reference model likewise          equal SSIM (0.875 vs 0.877); VGGT 19.30→25.69 dB,
+contains 83 images), whereas the Gaussians are trained only           residual -1.13 dB.
+on the 72 training frames and no arm is model-selected                (3) The contributions of triangulation and BA are
+against the held-out views. This is therefore a property              separable. Triangulation alone (frozen poses): +1.66 dB for
+shared by all arms, not information one front-end receives            Ω, +1.01 dB for VGGT — this part comes from replacing the
+and another does not. Note that 0.25/7000 is a floor                  network dense cloud with the true SIFT cloud; the net
+configuration we chose deliberately for the ablation matrix           contribution of BA is +2.78 dB/+4.11 dB. Repairing
+(quality just above the downstream visual bar, roughly ten            pose/intrinsics is thus the dominant gain.
+minutes end to end); Section 5.5 therefore re-runs the same              Table 1 Held-out quality under Protocol A (raw distorted images). 83
+front ends at medium and high training tiers to test whether          frames, 0.25 training resolution, 7000 steps, 11 held-out views, seed=0; all
+our conclusions are artefacts of the floor setting.                                20 arms come from a single clean matrix re-run.
+                                                                      Arm              Front-end configuration              PSNR    SSIM    LPIPS
+4.3 Two evaluation protocols                                          cmap_raw         COLMAP full pipeline                 25.77   0.837   0.234
+                                                                      omega            Ω raw forward (network point cloud) 21.35    0.674   0.326
+The feed-forward networks output k1≡0 whereas the
+                                                                      omegatri         Ω + triangulation                    23.01   0.741   0.290
+COLMAP SIMPLE_RADIAL solution gives k1=-0.0148. If
+                                                                      omegatriba       Ω + triangulation + BA (ours)        25.79   0.843   0.219
+every arm were trained on COLMAP-undistorted images, the
+                                                                      omegatriba_vg Ω + BA, but network dense points
+network arms would have pixels inconsistent with their own            pts           as init
+                                                                                                                            22.99   0.766   0.264
+model (the image was already bent by somebody else's k1); if                           VGGT raw forward (network point
+                                                                      vggt                                                  19.98   0.596   0.427
+every arm used raw distorted images, the network arms                                  cloud)
+
+would lack the distortion term. To avoid favouring one                vggttri          VGGT + triangulation                 20.99   0.641   0.372
+
+protocol we report both: protocol A uses the raw distorted            vggttriba        VGGT + triangulation + BA (ours)     25.10   0.811   0.253
+
+images everywhere (SIMPLE_RADIAL model, 1920×1080);                   vggttriba_vgpt   VGGT + BA, but network dense
+                                                                                                                            21.90   0.709   0.341
+                                                                      s                points as init
+protocol B undistorts each arm with its own calibrated k1 via
+                                                                                       Route B: self-generated tracks (no
+image_undistorter (network arms use the k estimated by                vggtgrid                                              19.99   0.600   0.407
+                                              1
+                                                                                       BA)
+their BA), i.e. the setting of a real COLMAP production line.         vggtgridba       Route B: self-generated tracks + BA 20.04    0.601   0.403
+The headline conclusions hold in both protocols, and protocol
+B is the more production-comparable one.                              5.2 Poses and intrinsics: the dominant source of the
+                                                                      gap
+4.4 Data hygiene: one clean matrix re-run
+Early results carried two attribution risks: (1) some arms
+shared an output directory (MODEL_NAME was not rewritten per
+arm); (2) the dataset directory was rebuilt mid-experiment, so
+identically named arms referred to different data. We
+therefore re-ran the entire matrix: per-arm MODEL_NAME,
+per-arm dedicated GPU, one concurrent wave, per-arm logs,
+with PSNR/SSIM/LPIPS, per-view PSNR, Gaussian counts
+and wall clocks written out. Every number in this paper
+comes from that single clean re-run; deviations from
+
+
+                                                                  5
+Figure 2 Held-out PSNR of all protocol-A arms (the two numbers above each bar are SSIM and LPIPS). Green: our route A; orange: feed-forward front-ends;
+                                                          gray: route B (self-generated tracks).
+
+
+Table 2 uses the COLMAP model as reference (residuals                         21.74 vs 26.82); VGGT (1.29°) predicts ≈-13 dB, measured
+after an Umeyama similarity absorbs scale and rigid degrees                   -7.52 dB — VGGT does better than predicted, because
+of freedom; trajectory diagonal 10.782 m). Before BA the                      network error is coherent (a global rotation/scale bias), partly
+median rotation residual is 0.5404° for Ω and 1.2912° for                     absorbable by 3DGS densification, whereas our perturbation
+VGGT, whereas two COLMAP solutions of the same data                           is per-frame independent and therefore more toxic. This also
+differ by only ≈0.04°. That figure is an inter-solution                       explains why one global BA suffices: coherent error is exactly
+agreement: it says the reference is repeatable under our                      what a low-dimensional parameterization removes best.
+settings, not that it lies within 0.04° of the real cameras. We               Geometry side by side. Figure 3 places four geometries in
+have no independent pose ground truth, so every residual                      one view: the network's dense point map (≈21.87M points
+quoted in this paper is taken relative to the COLMAP                          per network, thinned to 80k in the figure; low-confidence
+reference solution. After BA: Ω reaches 0.0701° (7.7× better,                 points faded) requires no correspondence search by
+close to that inter-solution agreement), VGGT 0.3212° (4.0×);                 construction, yet VGGT's cross-view 3-D point tracks break
+camera-center residuals (relative to the trajectory diagonal)                 up far more often than Ω's, consistent with its 1.29° rotation
+0.395%→0.096% and 0.579%→0.291%; mean reprojection                            residual. On the sparse side, our 51.4k points and
+1.443 px→0.386 px and 1.629 px→0.372 px (COLMAP                               COLMAP's 32.7k points hug the camera path equally well,
+reference 0.565 px: in the reprojection sense our solution is                 and the visual gap between them is far smaller than that
+even better, because the reference retains distant outliers).                 between the two dense clouds—mirroring the +0.02 dB of
+The intrinsics are repaired on the way, which is the other                    Table 1. Quality comes from the consistency of poses and
+half of the PSNR gain. Focal length: Ω 872.09→852.55 and                      observations, not from point density, in line with the graft
+VGGT 872.34→856.04 against a reference of 850.73 (the                         verdict (-2.8 to -3.2 dB, Table 1).
+networks were +2.5% too long); distortion k1: 0→-0.0133 /
+0→-0.0127 against a reference of -0.0148. This is why “just
+train on undistorted images” cannot save the bare network
+arms (vggtu/omegau in Table 1 are even lower): the network
+does not know that distortion exists, undistortion can only be
+performed with somebody else's k1, and that k1 is
+inconsistent with the network poses. Only BA produces a
+self-consistent (f, k1) pair.
+Pose-sensitivity experiment. To quantify “dB per degree”
+we inject artificial rotational perturbation into the COLMAP
+solution and retrain (protocol B): 0° 26.82 dB, 0.6° 20.29 dB,
+1.3° 17.55 dB, 2.6° 16.34 dB (Fig. 4, right). The slope for
+small perturbations is ≈-10.9 dB/°. Projecting each arm's
+measured rotation residual onto this curve predicts its loss: Ω
+(0.54°) predicts ≈-5.9 dB, measured -5.47 dB (protocol B,
+
+
+                                                                          6
+Figure 3 Geometry and imagery side by side (83-frame main scene). Top: the first two panels are network dense point maps (80k thinned points; solid where
+   conf >1.2, faded otherwise; blue = 3-D point tracks of 16 grid anchors on frame 0, sampled from the dense maps view by view, low-confidence anchors
+ dropped). The last two panels are the COLMAP reference and our (Ω + triangulation + one-shot BA) sparse clouds with rays of the 20 longest tracks (grey)
+ and their 3-D endpoints (orange). Coloured polylines: camera paths (green triangle = frame 0, red = frame 82); each panel in its own frame, so only shapes
+                                are comparable. Bottom: renders of held-out view 0 with overall held-out PSNR (protocol A).
+
+ Table 2 Pose/intrinsics residuals (reference = COLMAP model; residuals                 More BA iterations buy nothing. Raising the round-1 cap
+  after Umeyama absorbs scale and rigid degrees of freedom; trajectory
+                                                                                        from 100 to 300 (vggttrilong) gives a final cost of 0.379011
+                            diagonal 10.782m).
+                                                                                        px bit-identical to 100 iterations, the same 0.3212° pose
+                        center      rotation   rotation
+Model     Stage                                           reproj.(px)   f    k1         residual, and PSNR 25.02 vs 25.10 dB, within the run-to-run
+                        residual%   p50(°)     p95(°)
+          raw                                                           87              variation. Conversely lowering the cap to 30 gives a solution
+vggt      network       0.579       1.2912     2.464      —             2.   0          bit-identical to 100 iterations (rotation difference ≤6×10-6°,
+          output                                                        34
+                                                                                        camera-center difference ≤5.8×10-7, f/k1 identical) while
+          + triangulat                                                  87
+vggttri   ion (frozen 0.579         1.2912     2.464      1.629         2.   0          saving 85 s. The residual -0.67 dB (VGGT, protocol A) is an
+          poses)                                                        34
+                                                                                        information limit, not an iteration limit: going further requires
+                                                                        85
+vggttri   + one
+                        0.291       0.3212     0.665      0.372         6.
+                                                                             -0.0       more independent correspondence (dense matchers,
+ba        global BA                                                          127
+                                                                        04              temporal/IMU priors).
+          raw                                                           87
+omega     network       0.395       0.5404     1.573      —             2.   0          Quantifying the information limit. The VGGT front-end
+          output                                                        09              feeds BA only 93205 independent observations (Ω: 165147;
+omegat
+       + triangulat                                                     87              COLMAP reference: 192880), i.e. 2.8 observations per 3D
+       ion (frozen 0.395            0.5404     1.573      1.443         2.   0
+ri
+       poses)                                                           09              point against 5.9 for the reference, and its triangulated cloud
+                                                                        85              has median track length 2 versus 4 (Fig. 5, left): half as much
+omega     + one                                                              -0.0
+                        0.096       0.0701     0.199      0.386         2.              independent information is available to constrain the poses.
+triba     global BA                                                          133
+                                                                        55
+                                                                                        Taking the slope of the perturbation curve near the origin,
+          COLMAP
+cmap_r    reference
+                                                                        85
+                                                                             -0.0       -10.9 dB/° (Fig. 4, right), as a local ruler, the difference
+                        0.040       0.040      —          0.565         0.
+aw        (noise                                                             148        between the post-BA rotation residuals of the two front-ends
+                                                                        73
+          floor)
+                                                                                        (0.3212° vs 0.0701°) predicts an upper bound of 2.7 dB,
+          Route B                                                       86
+vggtgri                             1.4296                                   +0.0
+          (self-track   —                      —          0.256         5.              whereas the measured difference is only 0.69 dB (-0.67 vs
+dba                                 (worse)                                  010
+          BA)                                                           63
+                                                                                        +0.02) — most of the residual pose error is already absorbed
+5.3 Ablations: what helps and what hurts                                                by 3DGS densification and rasterisation. Recovering the
+                                                                                        remaining ∼0.6 dB therefore requires pushing the rotation
+Bringing the network dense cloud back hurts. With
+                                                                                        residual towards ∼0.1°, i.e. raising the observations-per-point
+identical BA poses/intrinsics, changing only the 3DGS
+                                                                                        to the reference level (dense trackers/matchers such as
+initialization from the triangulated SIFT cloud to the network
+                                                                                        LoFTR[11], or temporal/IMU priors), not more BA iterations.
+dense point map (omegatriba_vgpts, vggttriba_vgpts)
+drops PSNR from 25.79 to 22.99 dB (-2.80) and from 25.10
+                                                                                        5.4 BA-stage ablation: is one BA round already
+to 21.90 dB (-3.20). The poses of these two arms are
+                                                                                        enough?
+identical to the best arms — the effect is purely the point
+                                                                                        The main table summarises refinement as “BA → filter → BA
+cloud. This matches our 60-frame controlled observation that
+                                                                                        → final filter”, but the individual price of each step had so far
+“Ω has the highest training SSIM but the lowest held-out
+                                                                                        been measured only as a sum. We keep the triangulated
+PSNR”: dense network points buy overfitting capacity, not
+                                                                                        products fixed and stop the chain at different stages (Table
+generalization.
+                                                                                        3): S1 runs one global BA with no filtering at all; S2
+Self-generated correspondences do not help. Route B                                     additionally removes outliers by reprojection error and trains
+(vggtgrid/vggtgridba): 19.99→20.04 dB while the pose                                    immediately; S3 adds a second BA round after S2 (no trailing
+residual worsens from 1.2912° to 1.4296°, despite the lowest                            filter); the full chain is the main-table configuration.
+cost of all (0.256 px; Fig. 5, right).
+
+
+                                                                                    7
+ Figure 4 Left: held-out quality in protocol B (each arm undistorted with its own k1); our Ω chain is 0.10 dB from the full COLMAP pipeline. Middle: sensitivity
+curve for artificial rotation perturbation of COLMAP poses (dots) together with each arm's measured rotation residual and quality (vertical lines); the two axes
+ corroborate each other at the same order of magnitude. The right panel lists our residual against the reference under every measurement protocol (protocol
+    A at the low/mid/high training tiers, protocol B, and the second scene redcar): +0.02 to -0.26 dB for Ω and -0.58 to -1.13 dB for VGGT—the -0.67 dB of
+          protocol A and the -1.13 dB of protocol B are readings of the same residual under different protocols, not an extra defect of any single stage.
 
 
 
-                                             3
-离均在 ±0.3 dB 内（种子噪声水平）。                                              px——我们的解在重投影意义上甚至比它更好，因为参照含远
-                                                                     端外点）。
-5 结果                                                                内参被顺手修好，这是 PSNR 的另一半来源。焦距：Ω
-                                                                    872.09→852.55、VGGT 872.34→856.04，参照 850.73（网
-5.1 主结果
-                                                                    络原本偏长 +2.5%）；畸变 k1：0→-0.0133 / 0→-0.0127，参
-表 1 与图 2 给出全部档位。三点观察：                                               照 -0.0148。这解释了为什么"改用去畸变图像"救不了裸网络
-（1）前馈前端确实掉得多。口径 A 下 VGGT 裸前向 19.98                                  档位（表 1 的 vggtu/omegau 反而更低）：网络不知道有畸变
-dB、VGGT-Ω 21.35 dB，COLMAP 参照 25.77 dB；口径 B                          ，去畸变只能由别人的 k1 完成，而那个 k1 与网络位姿不自洽。
-下分别为 19.30/21.74 dB 对 26.82 dB。Ω 稳定优于 VGGT（                         只有 BA 能同时给出自洽的 (f, k1) 对。
-其位姿残差本就更小：0.54° vs 1.29°）。                                          位姿敏感度实验。为把"dB 每度"量化，我们对 COLMAP 解注
-（2）一次性 BA 把差距基本抹平。口径 A：Ω 从 21.35 dB 升                               入人为旋转扰动并重训（口径 B）：0° 26.82 dB、0.6° 20.29
-到 25.79 dB（+4.44 dB），反超 COLMAP 参照 0.02 dB；                          dB、1.3° 17.55 dB、2.6° 16.34 dB（图 3 右）。小扰动段斜
-VGGT 从 19.98 dB 升到 25.10 dB（+5.12 dB），残余 -0.67                      率约 -10.9 dB/°。把各档位的实测旋转残差投影到这条曲线上
-dB。口径 B：Ω 21.74→26.72 dB（+4.98 dB），与                                ，可以预测其掉点幅度：Ω（0.54°）约 -5.9 dB，实测 -5.47
-COLMAP 26.82 dB 差 0.10 dB，而 LPIPS 更优（0.198 vs                       dB（口径 B，21.74 vs 26.82）；VGGT（1.29°）约 -13 dB，
-0.203）、SSIM 基本相同（0.875 vs 0.877）；VGGT                               实测 -7.52 dB——VGGT 实测优于预测，说明网络误差是相
-19.30→25.69 dB，残余 -1.13 dB。                                         干的（整体偏转/尺度偏差），部分可被 3DGS 的致密化吸收
-                                                                    ，而人为扰动是逐帧独立的，更毒。这也解释了为什么"一次
-（3）三角化与 BA 的贡献可分离。只三角化不 BA（位姿冻
-                                                                    全局 BA"就够：相干误差正是低维参数化 BA 最擅长消除的成
-结）：Ω +1.66 dB、VGGT +1.01 dB——这部分来自"用真实
-                                                                    分。
-SIFT 点云替换网络稠密点云"；BA 的净贡献则是 Ω +2.78 dB、
-VGGT +4.11 dB。可见位姿/内参修复才是主收益来源。
-  表 1 口径 A（原始畸变图像）下的留出集质量。83 帧、0.25 分辨率、
-  7000 步、11 张留出、seed=0，全部 20 个档位同一次干净矩阵重跑。
-档位                前端配置                  PSNR    SSIM    LPIPS
-cmap_raw          COLMAP 全流程            25.77   0.837   0.234
-omega             Ω 裸前向（网络点云）           21.35   0.674   0.326
-omegatri          Ω + 三角化               23.01   0.741   0.290
-omegatriba        Ω + 三角化 + BA（本文）      25.79   0.843   0.219
-                                                                    图 3 左：口径 B（各家自标定 k 去畸变）下的留出集质量，本文链路 Ω 与
-omegatriba_vgpts Ω + BA，但用网络稠密点云        22.99   0.766   0.264                            1
-                                                                    COLMAP 全流程相差 0.10 dB。右：把 COLMAP 位姿人为旋转扰动的敏感
-vggt              VGGT 裸前向（网络点云）        19.98   0.596   0.427       度曲线（圆点），以及各档位实测旋转残差与质量（竖线）；两条轴在同一
-vggttri           VGGT + 三角化            20.99   0.641   0.372                          量级上相互印证。
-vggttriba         VGGT + 三角化 + BA（本文）   25.10   0.811   0.253
-                  VGGT + BA，但用网络稠密点                                 5.3 消融：什么有用、什么有害
-vggttriba_vgpts                         21.90   0.709   0.341
-                  云
-                                                                    把网络稠密点云接回来是有害的。在完全相同的 BA 位姿/内
-vggtgrid          路线 B：自证轨迹（无 BA）       19.99   0.600   0.407
-                                                                    参下，仅把 3DGS 初始化从三角化 SIFT 点云换成网络稠密点
-vggtgridba        路线 B：自证轨迹 + BA        20.04   0.601   0.403
-                                                                    图（omegatriba_vgpts、vggttriba_vgpts），PSNR 从
-                                                                    25.79 掉到 22.99 dB（-2.80）与 25.10 掉到 21.90 dB（-3.20）
-                                                                    。注意这两个档位的位姿与最优档位完全相同——纯粹是点云
-                                                                    造成的。这与 60 帧受控实验中"Ω 训练集 SSIM 最高但留出
-                                                                    PSNR 最低"的观察一致：稠密网络点带来的是过拟合能力，
-                                                                    不是泛化能力。
-                                                                    自证式轨迹 BA 无效。路线 B（vggtgrid/vggtgridba）：
-                                                                    19.99→20.04 dB，位姿反而从 1.2912° 恶化到 1.4296°，代价
-                                                                    虽然收敛到全场最低的 0.256 px（图 4 右）。
-                                                                    BA 多迭代没有收益。把第 1 轮上限从 100 提到 300（
-图 2 口径 A 全部 12 个非消融/消融档位的留出集 PSNR（柱顶两行分别为
-SSIM 与 LPIPS）。绿色为本文路线 A，橙色为前馈前端，灰色为路线 B（                            vggttrilong），最终代价 0.379011 px 与 100 迭代逐位相同
-                   自证轨迹）。                                           ，模型侧旋转残差仍是 0.3212°，PSNR 25.02 vs 25.10 dB（
-                                                                    噪声）。反之把上限降到 30，解与 100 迭代逐位相同（旋转
-5.2 位姿与内参：差距的直接来源                                                   差 ≤6×10-6°、光心差 ≤5.8×10-7、f/k1 完全一致）而墙钟省
-表 2 以 COLMAP 模型为参照（Umeyama 相似变换吸收尺度                                 85 s。残余的 -0.67 dB（VGGT，口径 A）是信息极限而非迭
-与刚体自由度后统计不可吸收残差，轨迹对角线 10.782 m）。                                    代极限：要再进一步只能增加独立对应（稠密匹配器、帧序
-BA 之前，Ω 的旋转残差中位数 0.5404°、VGGT 1.2912°，而"                            /IMU 先验）。
-COLMAP 与自身另一种解之差"仅 0.04° 量级，可作为噪声地
-板。BA 之后：Ω 降到 0.0701°（降 7.7×，已接近噪声地板）
-，VGGT 降到 0.3212°（降 4.0×）；光心残差（占轨迹对角线）
-0.395%→0.096%、0.579%→0.291%；平均重投影 1.443
-px→0.386 px、1.629 px→0.372 px（COLMAP 参照 0.565
+
+ Figure 5 Left: track-length distribution of the triangulated point clouds (log scale). Our triangulated cloud has median track length 2 and mean 3.39, “thinner”
+than COLMAP's incremental mapping (median 4, mean 5.90) — which keeps BA affordable but also contributes to the residual gap. Right: mean reprojection
+  error (log) against pose rotation residual p50 (log), the dashed arrow pointing towards more accurate — the lowest-residual variant (route B) has the worst
+                                                          poses, so “more self-consistent” ≠ “more correct”.
 
 
-                                                                4
-             表 2 位姿/内参残差（参照 = COLMAP 模型，Umeyama 吸收尺度与刚体自由度后的不可吸收残差；轨迹对角线 10.782m）。
-      模型             阶段                   光心残差%   旋转 p50(°)              旋转 p95(°)          重投影(px)       f           k1
-      vggt           网络裸输出                0.579   1.2912                 2.464              —             872.34      0
-      vggttri        + 三角化（位姿冻结）          0.579   1.2912                 2.464              1.629         872.34      0
-      vggttriba      + 一次 global BA       0.291   0.3212                 0.665              0.372         856.04      -0.0127
-      omega          网络裸输出                0.395   0.5404                 1.573              —             872.09      0
-      omegatri       + 三角化（位姿冻结）          0.395   0.5404                 1.573              1.443         872.09      0
-      omegatriba     + 一次 global BA       0.096   0.0701                 0.199              0.386         852.55      -0.0133
-      cmap_raw       COLMAP 参照（噪声地板）      0.040   0.040                  —                  0.565         850.73      -0.0148
-      vggtgridba     路线 B（自证轨迹 BA）        —       1.4296（变差）             —                  0.256         865.63      +0.0010
-
-                                                                   表 3 BA 成本实测（同一 database.db、同一容器、空载、
-                                                              OMP_NUM_THREADS=8）。BA 墙钟近似线性于观测数：0.27M→68s、
-                                                                                     0.50M→117s、1.91M→291s。
-                                                           跑法                         墙钟(s)     Final cost(px)   备注
-                                                           colmap mapper（默认                                      2 个子模型 / 83 图 / 32690
-                                                                                      184       0.565
-                                                           BA）                                                   点
-                                                           mapper（关掉 BA 迭代）87                   1.648            83 图 / 37315 点
-                                                                                      ≈97                        35 次 global + ≈81 次 local
-                                                           ⇒ mapper 内 BA                        —
-                                                                                      (53%)                      ，≈1s/次
-                                                           本文 BA 第 1 轮（30 迭
-                                                                            57                  0.33855          与 60/100 迭代解逐位相同
- 图 4 左：三角化产物的轨迹长度分布（对数纵轴）。本文三角化点云中位                        代）
-轨迹长仅 2、均值 3.39，比 COLMAP 增量建图（中位 4、均值 5.90）更"瘦"             本文 BA 第 1 轮（100
- ，这既是 BA 成本可控的原因，也是残余差距的来源之一。右：BA 残差与                                                 142       0.33855          NO_CONVERGENCE
-                                                           迭代）
-位姿残差的关系——残差最低者（路线 B）位姿最歪，说明"更自洽"不等于"
-                                                           本文 BA 第 1 轮（300                                       PSNR 25.08 vs 24.97：噪
-                    更正确"。                                                             171.6     0.37900
-                                                           迭代）                                                   声
-                                                           point_filtering + 第 2 轮
-                                                                                      24        0.31747          CONVERGENCE（18 迭代）
-5.4 逐视角行为与定性                                               BA(50)
-                                                           自证轨迹 BA（1.91M                                         CONVERGENCE，但位姿
-图 5 给出 11 张留出视角的逐视角 PSNR。六个档位的曲线形                          观测）
-                                                                                      291       0.256
-                                                                                                                 更歪
-状一致（视角 0 最易、视角 6 最难），但间距随难度增大：
-在最难视角上 COLMAP 23.29 dB、Ω+BA 24.40 dB、Ω+三角
-化 22.03 dB、Ω 裸 19.18 dB、VGGT 裸 17.80 dB。留出视角
-离训练轨迹越远，位姿/内参误差的杠杆越大——这与式 (1) 的
-几何一致（外推视角的像素位移 ∝f·Δθ，故 f 偏长与 θ 偏差
-会同向叠加）。图 6 的定性对比同样显示：网络裸前向的飘点
-与"糊墙式"过曝在 BA 后基本消失，Ω+BA 与 COLMAP 的渲
-染在难视角上已难以分辨。
-                                                           图 7 左：第 1 轮全局 BA 的迭代上限与墙钟；30、60、100 迭代给出逐位
-                                                           相同的解（阴影区），300 迭代无收益。右：BA 墙钟随观测数线性增长。
-
-                                                           表 3 的 A/B 实验（同一 database.db、同一容器、空载、8
-                                                           线程）说明：COLMAP 的 BA 在 mapper 内占 ≈97 s（53%）
-                                                           ，但它是 35 次全局 + 约 81 次局部调用的累计，平均单次仅
-                                                           1 s。注意 mapper 内部把 print_summary 置为 false[2]，日
-                                                           志里看不到 BA 报告，这也是"BA 最耗时"长期无法从日志证
-                                                           实的原因；COLMAP 4.0.4 的 mapper BA 亦为同步串行，不
-                                                           与注册循环重叠。
-                                                           我们的做法是把 BA 降级为推理末尾的两次全局求解：第 1 轮
-                                                           （30 迭代）57 s、过滤 3 s、第 2 轮（50 上限，实际 18 迭代
-                                                           CONVERGENCE）21 s，加三角化 22 s 合计 ≈106 s；若第 1 轮
-                                                           仍用 100 迭代则 ≈191 s。成本线性于观测数（图 7 右），因
-                                                           此可通过 - -Mapper.tri_ignore_two_view_tracks 1（丢弃
-                                                           短轨迹）或改用 sequential_matcher 降低观测规模来进一步
-                  图 5 逐视角 PSNR（11 张留出）。
-                                                           压缩。
-
-                                                           6.2 端到端净账
-6 耗时与成本
-
-6.1 BA 到底贵在哪里
+The two front-ends give opposite answers, and that contrast                        according to a projection model that has not been re-fitted
+is itself the finding. The Ω front-end has already converged at                    yet. Operationally, filtering and the following BA must be
+S1: 25.84 dB, marginally above the full chain (+0.05 dB,                           issued as one atomic step. Note again that S1 has the most
+within noise) — one BA round takes all the gain that is                            points (unfiltered) yet is no worse than the filtered arms —
+available on this data, the following filter throws away                           3DGS tolerates the number of initial points but not geometric
+74421→51498 points for a quality change of -0.12 dB, and                           inconsistency (§5.3).
+the second BA round merely recovers that loss (+0.01 dB).
+The VGGT front-end behaves the other way round: S1                                 5.5 Training tiers: the main table is a floor setting
+reaches only 24.81 dB, adding a filter hurts (24.39 dB, -0.42
+dB), and only a following BA round restores the loss (24.89
+dB); the trailing filter then delivers 25.10 dB. Net gain of “filter
++ second BA + trailing filter” over a single BA round: +0.29 dB
+for 21 s of extra BA (148→169 s).
+This yields a rule that transfers directly to production: outlier
+filtering is not a gain term by itself, it is pre-clean-up for
+the next BA round. With a good front-end (Ω, rotation
+residual 0.54°) both filtering and the second round are worth
+nothing; with a weaker one (VGGT, 1.29°) filtering alone is
+harmful (-0.42 dB) and pays off only when paired with the
+following BA (net +0.29 dB) — filtering deletes observations
 
 
 
+                                                                               8
+  Table 3 BA-stage ablation (low tier 0.25x/7000 steps, Protocol A). The front-end products are fixed and only the refinement stage changes: S1 runs one
+  global BA; S2 additionally removes outliers by reprojection error; S3 adds a second BA round after S2; the full chain is the main-table configuration (one
+                  more trailing filter after S3). ΔPSNR is relative to the full chain of the same front-end. Reference cmap_raw = 25.77dB.
+        Front-end            Refinement stage                                Sparse points   PSNR       SSIM       LPIPS      ΔPSNR vs full chain
+        Ω front-end          S1: one global BA (no outlier filtering)        74,421          25.84      0.850      0.215      +0.05
+        Ω front-end          S2: BA + outlier filtering                      51,498          25.67      0.842      0.220      -0.12
+        Ω front-end          S3: S2 + a second BA round                      51,498          25.80      0.843      0.220      +0.01
+        Ω front-end          Full chain (main table: S3 + trailing filter)   51,377          25.79      0.843      0.219      ±0.00
+        VGGT front-end       S1: one global BA (no outlier filtering)        47,872          24.81      0.804      0.260      -0.29
+        VGGT front-end       S2: BA + outlier filtering                      33,424          24.39      0.795      0.266      -0.71
+        VGGT front-end       S3: S2 + a second BA round                      33,424          24.89      0.810      0.254      -0.21
+        VGGT front-end       Full chain (main table: S3 + trailing filter)   33,162          25.10      0.811      0.253      ±0.00
 
-                                                     5
-图 6 定性对比（3 个留出视角 × 6 档，480×270；每格右下角为该视角 PSNR）。第一行最难视角之一：网络裸前向出现明显的地面拉丝与车身重影，三角
-                                化改善结构，BA 后与 COLMAP 参照基本一致。
-
-
-                                                   注阶段的经典组件搬到推理侧，并证明它对下游 3DGS 是决
-                                                   定性的。这也暗示了一个产品含义：前馈网络的公开评测口径
-                                                   （AUC、AbsRel）与下游可重建性之间存在缝隙——k1≡0
-                                                   就 是最典型的缝隙，本文的 +1.2 dB（口径 A→B 时本文链路
-                                                   的 增益）几乎全部来自它。
-                                                   仍未解决的问题。（1）网络稠密点图在 3DGS 初始化上仍无
-                                                   用（-2.8 至 -3.2 dB），需要飘点治理或"稠密几何当先验而非
-                                                   观测"（BA 外加软约束 w|X-proj(X)|2）；（2）本文复用了生
-图 8 左：BA 在 COLMAP 内部占比的 A/B 实测，以及与本文一次性 BA 的
-       对比（柱下为重投影误差）。右：前端各环节墙钟。                     产链路的 SIFT 数据库，虽然对 COLMAP 而言是免费午餐，
-                                                   但对"完全不想跑匹配"的场景，需另找独立对应来源（
-图 8 右给出前端净账（83 帧）：COLMAP 生产脚本 148.96 s
-                                                   LoFTR[11]/RAFT 类稠密匹配、或帧序与 IMU 先验）；（3）
-；VGGT 前端 83.90 s，加 BA 后 ≈194 s（30 迭代版 ≈144 s）
-                                                   动态目标（视频中的行驶车辆）在轨迹里构成系统性外点，本
-；Ω 前端 104.50 s，加 BA 后 ≈296 s（30 迭代版 ≈211 s）。
-                                                   文靠 point_filtering 与鲁棒核压住，但没有专门建模。
-也就是说，在 COLMAP 能顺利建图的素材上，"用网络省时
-间"这个动机在加上 BA 之后基本不成立。训练侧不受前端影
-响（7000 步单卡 159–203 s，点数越少越快），三链路端到
-                                                   8 结论
-端（前端 + 训练 + 渲染 + 评测）分别为 COLMAP 537.19 s、           在国产化 AI 加速器平台上，我们把 COLMAP 的"三角化 + 束
-VGGT 465.74 s、Ω 554.23 s。                          调整"两个组件从增量式建图循环中剥离出来，用作前馈重建
-                                                   前端（VGGT / VGGT-Ω）输出的一次性后处理：冻结网络位
-那么网络前端的价值在哪里？三点：（i）全帧注册：网络
-                                                   姿做三角化以重建与外部 SIFT 观测一致的三维点集，再放开
-83/83 全注册，而 mapper 在同一数据上产生 2 个子模型、
-                                                   位姿、焦距与畸变做一次全局 BA，夹一轮点过滤后再次 BA。
-221 次注册尝试（其中失败重试的成本不计入成功路径）；（
-                                                   仅此五步即可把前馈前端在 3DGS 上的 4.4–7.5 dB 损失收回
-ii）成本可预算：我们只有"匹配 + 一次 BA"两项确定成本，没
-                                                   至 0.10 dB（Ω）与 1.13 dB（VGGT），并把网络从不估计的
-有"注册失败、分裂、人工合并、重跑"这一项；（iii）初值质
-                                                   畸变系数从无到有标定出来。我们同时给出该做法的两个必要
-量：网络给出相干型偏差的初值，使"一次全局 BA"成为充分
-                                                   条件（对应关系必须独立于网络；网络稠密点云不应进入残差、
-操作，而 COLMAP 必须靠增量循环自己把初值找出来。反过
-                                                   也不应作为 3DGS 初始化）与其代价（前端速度优势基本消
-来，如果素材本身能被 COLMAP 顺利处理，网络前端的净收
-                                                   失）。对希望用前馈网络替换 SfM 前端的工程实践，本文的
-益接近 0——这是我们希望明确说清的边界。
-                                                   建议是：把网络当"好的初值生成器"，把经典 BA 留在推理末
-                                                   尾，而不是指望网络端到端替代优化。
-7 讨论与局限
-                                                   [1] Kerbl B, Kopanas G, Leimkühler T, Drettakis G. 3D Gaussian splatting for
-结论的适用范围。本文只有一段 83 帧行车视频（弱纹理地面                           real-time radiance field rendering[J]. ACM Transactions on Graphics,
-+ 多车遮挡）、7000 步训练。绝对 PSNR 不可与公开基准直                       2023, 42(4): 139:1–139:14.
-
-接比较（分辨率与步数都远低于 3DGS 论文口径），但档位                      [2] Schönberger J L, Frahm J M. Structure-from-motion revisited[C]//Proc.
-                                                       IEEE Conf. Computer Vision and Pattern Recognition (CVPR). 2016:
-之间的差在同一配置下具有可比性，且 ±0.3 dB 以内的差我们                       4104–4113.
-一律视为噪声。口径 B 下 VGGT 残余 -1.13 dB 说明单次 BA             [3] Schönberger J L, Preisach C, Niemasz K, et al. Structure-from-motion with
-对初值更差的 VGGT 并未完全收敛到 COLMAP 水平。                          incremental mapping and bundle adjustment in the loop[C]//Eur. Conf.
-                                                        Computer Vision (ECCV). 2020.
-与 VGGT-Ω 论文的关系。Ω 的精度指标（相机 AUC 等）是                  [4] Agarwal S, Mierle K, Szeliski R, et al. Estimating the epipolar geometry /
-网络裸输出，论文中的 BA 属于数据标注侧且由外部对应驱动                           Bundle    adjustment     in    the     large:    a    scalable    modern
-[7]。因此本文不是"发明论文没有的东西"，而是把论文放在标                          implementation[C]//Eur. Conf. Computer Vision (ECCV). 2010.
+The nature of the main-table setting has to be stated up front:                    the medium and high tiers are therefore reported as
+0.25 resolution + 7000 steps, together with the fast                               robustness ablations only and do not replace the main table:
+production script on the COLMAP side, is a configuration we                        every headline number in the abstract and in the text stays at
+chose deliberately as the minimum: it keeps the whole chain                        the low-tier (main-table) setting, and the higher tiers are
+(front end + training + rendering + evaluation) inside roughly                     reported through Table 4 and Figure 6; wall-clock figures in
+ten minutes while still meeting the visual-quality bar required                    the table come from concurrent runs on the same machine
+downstream, which is exactly what an ablation matrix that                          and are order-of-magnitude only (e.g. the medium-tier VGGT
+must be re-run repeatedly needs. The price is an absolute                          + triangulation arm shows 1488 s, clearly slowed by its
+PSNR far below the 3DGS-paper convention, which raises a                           concurrent wave, whose same-wave control finished in 731
+question we must answer: is the small gap between our                              s).
+chain and COLMAP an artefact of the floor setting?
+Under-fitting depresses every arm at once and can hide
+differences that only surface once training is adequate.
+We therefore raised the 3DGS training tier while leaving
+every front-end product untouched (poses, intrinsics and
+sparse point cloud byte-identical): medium =0.5 resolution /
+20000 steps, high =1.0 native resolution / 30000 steps (Table
+4, Figure 6 left).
+Absolute PSNR is not comparable across tiers: going
+from the low to the high tier multiplies the held-out pixel grid
+by 16×, so detail errors are scored more strictly and even the
+COLMAP reference itself falls monotonically — PSNR
+25.77→25.31→24.65 dB, SSIM 0.837→0.822→0.820,
+LPIPS 0.234→0.282→0.352. The only comparable quantity
+is the within-tier difference Δ=arm-COLMAPsame tier, which we
+therefore report as an explicit column of Table 4; Figure 6
+(left) plots exactly those seven Δ curves over the three tiers.
+Three conclusions follow. (i) The BA arms stay in the
+reference's immediate neighbourhood at all three tiers: Ω
+gives +0.02/-0.07/-0.07 dB and VGGT -0.67/-0.87/-0.76 dB,
+never more than 0.9 dB away. The near-parity in the main
+table is therefore neither an artefact of the floor setting nor a
+coincidence that only appears once training is adequate. (ii)
+The 4∼7 dB deficit of the raw forward pass is never
+closed by training harder: Ω -4.42/-4.96/-4.51 dB and
+VGGT -5.79/-6.96/-5.99 dB; quadrupling both the pixel count
+and the iterations only measures the structural bias more
+precisely instead of removing it (the high tier is slightly better
+than the medium one, since 0.5 sampling happens to sit at
+the most unfavourable point of the error curve). (iii)
+Triangulation without BA plateaus at -2.76/-3.31/-3.24 dB
+(Ω) and -4.78/-5.27/-4.89 dB (VGGT): replacing the point
+cloud recovers roughly a third to a half, the rest has to be
+extracted from the poses and intrinsics by BA. A single arm
+costs 1518∼2006 s at the high tier versus 155∼219 s at the
+low one, which is why the ablation matrix runs at the low tier;
 
 
+                                                                               9
+  Table 4 Quality tiers: identical front-end products (byte-identical poses,           P_init = P_SIFT^BA ∪ {Sim3(X_net(u,v)) | c(u,v) > τ},     (2)
+intrinsics and sparse cloud); only the 3DGS training tier (resolution scaling
+ and iteration count) changes. The low tier is the main-table setting, so its        where network points are obtained by per-pixel
+ rows match Table 1. Absolute PSNR is not comparable across tiers (the               back-projection of the depth, transported into the BA world
+   held-out pixel grid grows 16×); only the within-tier ΔPSNR against the
+                                                                                     frame by the Umeyama similarity between the pre- and
+                       same-tier COLMAP reference is.
+                                                                                     post-BA camera centres, randomly downsampled to 1M, and
+                                                            ΔPSNR vs
+front-end                                                                            inserted with empty tracks (they have no 2D observations, so
+                    Training tier   PSNR    SSIM    LPIPS   same-tier
+configuration
+                                                            COLMAP                   they never enter the residual of Eq. (1); they only seed
+                    low: 0.25x / 7k
+COLMAP                              25.77   0.837   0.234   +0.00                    densification), while SIFT points keep their 2D tracks
+                    steps
+                    low: 0.25x / 7k
+                                                                                     verbatim. The threshold τ is 1.2 (the official confidence filter).
+Ω raw forward                       21.35   0.674   0.326   -4.42
+                    steps                                                            Because confidence units are not comparable across
+Ω + triangulation
+                    low: 0.25x / 7k
+                                    23.01   0.741   0.290   -2.76
+                                                                                     networks (Ω keeps 87.9% of pixels at τ=1.2, VGGT only
+                    steps
+                                                                                     35.1%), we additionally run a quantile-matched control
+Ω+
+triangulation +
+                    low: 0.25x / 7k
+                                    25.79   0.843   0.219   +0.02                    omegafuseq (τ=22.08, bringing Ω's retention to the same
+                    steps
+BA                                                                                   35.1%), which removes “more injection causes more harm”
+VGGT raw            low: 0.25x / 7k
+                                    19.98   0.596   0.427   -5.79                    as a confound.
+forward             steps
+VGGT +              low: 0.25x / 7k                                                  Table 5 and Figure 6 right give three clean results:
+                                    20.99   0.641   0.372   -4.78
+triangulation       steps
+                                                                                     (1) Monotone ordering: SIFT ∪ network > pure network,
+VGGT +
+                    low: 0.25x /                                                     but < pure SIFT. Ω: 25.79→24.66→22.99 dB; VGGT:
+triangulation +                     25.10   0.811   0.253   -0.67
+                    7k steps
+BA                                                                                   25.10→24.55→21.90 dB. The network cloud clearly carries
+                    medium: 0.5x                                                     information (the union beats pure network points by
+COLMAP                              25.31   0.822   0.282   +0.00
+                    / 20k steps
+                                                                                     +1.67/+2.65 dB), but on this scene its contribution is far
+                    medium: 0.5x
+Ω raw forward                       20.35   0.634   0.388   -4.96
+                    / 20k steps                                                      outweighed by the dilution of the SIFT initialisation.
+                    medium: 0.5x
+Ω + triangulation
+                    / 20k steps
+                                    22.00   0.691   0.361   -3.31                    (2) Dilution has a measurable price. 1M network points
+Ω+
+                                                                                     against 51k SIFT points (Ω) / 33k (VGGT) put a cloud of
+                    medium: 0.5x
+triangulation +
+                    / 20k steps
+                                    25.24   0.824   0.270   -0.07                    drifting points at the densification start: final Gaussian count
+BA
+                                                                                     634k→1124k (+77%), training wall-clock 179 s→313 s
+VGGT raw            medium: 0.5x
+forward             / 20k steps
+                                    18.35   0.568   0.472   -6.96                    (+75%), and the quantile-matched arm still needs 1164k/435
+VGGT +              medium: 0.5x                                                     s — for lower quality. SSIM/LPIPS move the same way
+                                    20.04   0.609   0.441   -5.27
+triangulation       / 20k steps                                                      (0.843→0.824, 0.219→0.223), so this is neither a metric
+VGGT +                                                                               preference nor “more compute for more quality”.
+                    medium: 0.5x
+triangulation +                  24.44      0.784   0.310   -0.87
+                    / 20k steps
+BA                                                                                   (3) Injection volume is the main source of harm, but
+                    high: 1.0x /                                                     aligning quantiles still yields no positive gain. Raising Ω's
+COLMAP                              24.65   0.820   0.352   +0.00
+                    30k steps
+                                                                                     threshold to τ=22.08 (omegafuseq, retention matched to
+                    high: 1.0x /
+Ω raw forward                       20.14   0.682   0.440   -4.51
+                    30k steps                                                        VGGT's 35.1%) recovers +0.68 dB to 25.34 and brings
+Ω + triangulation
+                    high: 1.0x /
+                                    21.41   0.714   0.425   -3.24
+                                                                                     SSIM/LPIPS almost back to pure-SIFT levels (0.835/0.221 vs
+                    30k steps
+                                                                                     0.843/0.219): roughly two thirds of the -1.13 dB comes from
+Ω+
+triangulation +
+                    high: 1.0x /
+                                    24.58   0.822   0.341   -0.07
+                                                                                     pouring in low-confidence drift as well. But matching
+                    30k steps
+BA                                                                                   quantiles still does not catch up with pure SIFT: Δ=-0.45 dB
+VGGT raw            high: 1.0x /
+                                    18.66   0.654   0.505   -5.99                    (Ω) and -0.55 dB (VGGT), the same magnitude. The
+forward             30k steps
+                                                                                     mechanism is that geometry injected as observations without
+VGGT +              high: 1.0x /
+triangulation       30k steps
+                                    19.76   0.671   0.489   -4.89                    corresponding 2D observations is treated by 3DGS as “free
+VGGT +                                                                               ellipsoids that can be fitted from any viewing direction”, and
+                    high: 1.0x /
+triangulation +                     23.89   0.791   0.376   -0.76                    on held-out views it is necessarily fitted to the wrong place —
+                    30k steps
+BA
+                                                                                     a weakened version of the same mechanism as the graft
+5.6 Fusion arms: can SIFT and network points be                                      arm, not simply “too many points”.
+combined?                                                                            The practical recommendation is therefore: keep the
+The graft ablation in Section 5.3 replaced the triangulated                          network geometry at the pose/initialisation layer and do
+cloud with the network point map, which hurts. Replacement                           not connect it to the 3DGS initialisation. Exploiting the
+is also the crudest possible use, and the two error sources                          complementarity properly means turning the dense geometry
+are in fact complementary: triangulation noise scales like                           into a weighted soft constraint rather than a point observation
+1/baseline and blows up for adjacent video frames, while                             (adding λρ(|X-proj(Xnet)|2) to the training objective, or
+network depth is very stable exactly in textured,                                    modulating the densification threshold only where c>τ), which
+wide-baseline        regions      and     fails       only    in                     we leave to future work.
+texture-less/over-exposed/occluded ones. We therefore
+implemented and tested fusion arms: BA poses and
+intrinsics stay fixed, and only the 3DGS initialisation becomes
 
 
-                                               6
-[5] Lowe D G. Distinctive image features from scale-invariant keypoints[J].       性能极差，是本仓库早期"nerficg 训练要几个小时"的主因之一。
+
+                                                                                10
+    Figure 6 Left: within each of the three training tiers (low 0.25/7k, medium 0.5/20k, high 1.0/30k), PSNR difference relative to the same-tier COLMAP
+   reference (absolute values are not comparable across tiers, hence differences only). Right: fusion arms (same BA poses, only the 3DGS initialisation
+                                                       changes); each bar is annotated PSNR/SSIM/LPIPS.
+
+     Table 5 Fusion arms: BA poses and intrinsics fixed; only the 3DGS              raw forward. All three main-table statements hold: raw
+initialisation changes, to SIFT sparse points ∪ confidence-filtered network
+                                                                                    forward is not directly usable, triangulation recovers only part,
+dense points (low tier 0.25/7k, same setting as the main table). SIFT points
+keep their 2D tracks; network points enter with empty tracks (densification         and BA is what returns quality to the reference's level. The
+                    seeds only, outside the BA residual).                           weakest arm repeated three times gives 21.89/21.92/21.93
+Fusion
+             conf   retention
+                                SIFT     network
+                                                    PSNR    SSIM    LPIPS
+                                                                                    dB (±0.04 dB), so the ordering is not jitter.
+arm                             points   pts
+omegatri
+                                                                                    The marginal value of triangulation is scene-dependent;
+             -      -           51,377   0          25.79   0.843   0.219
+ba                                                                                  that of BA is not. Triangulation alone is worth +1.66 dB for
+omegafus
+             1.2    0.879       51,377
+                                         1,000,00
+                                                    24.66   0.824   0.223           Ω on the main scene but +0.04 dB here, whereas the BA step
+e                                        0
+                                                                                    is worth +2.78/+1.98 dB (Ω) and +4.11/+2.57 dB (VGGT) on
+omegafus                                 1,000,00
+eq
+             22.08 0.350        51,377
+                                         0
+                                                    25.34   0.835   0.221           the two scenes. The mechanism is the same as in §5.1:
+omegatrib                                1,000,00                                   triangulation replaces an initialisation that is co-distributed
+             -      -           0                   22.99   0.766   0.264
+a_vgpts                                  0                                          with the depth head, so its payoff depends on how depth
+vggttriba    -      -           33,162   0          25.10   0.811   0.253           error and 2D noise compare in a given scene (redcar is richly
+                                         1,000,00                                   textured with wide baselines, so the network depth is already
+vggtfuse     1.2    0.351       33,162              24.55   0.800   0.254
+                                         0
+                                                                                    decent), while BA repairs poses and intrinsics, and any
+vggttriba_                               1,000,00
+             -      -           0                   21.90   0.709   0.341
+vgpts                                    0                                          front-end that leaves k1≡0 and a biased focal length benefits
+                                                                                    by a stable amount. Triangulation is the step that gives BA
+5.7 Cross-scene replication: does anything survive
+                                                                                    the right observability; BA is the payoff.
+outside the first video?
+                                                                                    One difference we must report honestly. The COLMAP
+The main matrix uses a single 83-frame driving video (weakly
+                                                                                    reference here is a third-party model with an OPENCV
+textured ground, occluding vehicles). To rule out scene
+                                                                                    camera (fx=1833.78≠fy=1637.84, 12% apart), while all our
+dependence we re-ran all seven links on a second,
+                                                                                    network arms use SIMPLE_RADIAL (fx=fy). This mismatch
+independent clip (redcar, 191 frames at 1920×1080, shipped
+                                                                                    cannot be compensated by BA under SIMPLE_RADIAL, so
+with its own exhaustive SIFT database and a third-party
+                                                                                    the remaining 1.22∼1.26° rotation residual after BA (versus
+COLMAP        3.x    model)     using    a    training   tier
+                                                                                    0.0701° for Ω on the main scene) should be read as a
+parameter-for-parameter identical to the main table (0.25
+                                                                                    limitation of the camera-model family, not as unconverged
+resolution / 7000 steps, same machine, same concurrent
+                                                                                    BA: the two independent front-ends agree with each other to
+wave, same protocol). Table 6 and Figure 7 (left) give the
+                                                                                    0.287° with camera centres 0.193% of the trajectory diagonal
+result.
+                                                                                    apart (Fig. 7, right) — they converge to the same geometry,
+The qualitative conclusions replicate verbatim; the                                 which simply does not fit inside the reference's
+magnitudes differ. Raw forward input lands -2.28 dB (Ω)                             parameterisation. Practical corollary: align camera-model
+and -3.80 dB (VGGT) below the reference — about half the                            families before comparing pose residuals across
+main-scene deficit (-4.42/-5.79 dB). Triangulation alone                            datasets, otherwise the residual measures model mismatch
+moves Ω barely at all (22.79→22.83, +0.04 dB) and VGGT                              rather than accuracy.
+by +0.65 dB; adding one global BA brings both arms to -0.26
+dB and -0.58 dB — +1.98 dB (Ω) and +2.57 dB (VGGT) on                               5.8 Silent collapse: incremental mapping can fail
+top of their own triangulated inputs, +2.02/+3.22 dB on top of                      without reporting failure
+
+
+                                                                               11
+    Table 6 Cross-scene replication (second scene, redcar, 191 frames, training tier identical to the main table). The reference rc_cmap is the third-party
+COLMAP 3.x model shipped with the video (OPENCV camera, fx≠fy differing by 12%, reprojection 1.047 px), whereas all network arms use SIMPLE_RADIAL
+  (fx=fy, k1≡0 before BA); pose residuals on this scene are therefore qualitative and the comparable statement across front-ends is in the PSNR columns.
+   Rotation residuals are medians with respect to that reference after Umeyama absorbs scale and rigid degrees of freedom; trajectory diagonal 11.4297.
+arm             front-end configuration     Sparse points   rotation residual p50(°) reproj.(px)   PSNR    SSIM     LPIPS     ΔPSNR vs same-scene COLMAP
+rc_cmap         COLMAP                      37,995          —                        1.047         25.07   0.690    0.329     +0.00
+rc_omega        Ω raw forward               487,313         1.4927                   —             22.79   0.582    0.358     -2.28
+rc_omegatri     Ω + triangulation           67,375          1.4927                   1.470         22.83   0.579    0.407     -2.24
+rc_omegatriba   Ω + triangulation + BA      50,840          1.2578                   0.704         24.81   0.689    0.319     -0.26
+rc_vggt         VGGT raw forward            486,423         1.3422                   —             21.27   0.514    0.415     -3.80
+rc_vggttri      VGGT + triangulation        56,616          1.3422                   1.569         21.92   0.532    0.454     -3.15
+rc_vggttriba    VGGT + triangulation + BA 41,595            1.2206                   0.671         24.49   0.667    0.341     -0.58
+
+
+
+
+  Figure 7 Left: PSNR gap to the same-scene COLMAP reference for two scenes and three front-end stages (pale = scene 1, 83 frames; solid = scene 2,
+   redcar, 191 frames). Right: on redcar, rotation residual p50 per arm (bars, left axis) against held-out PSNR (line, right axis); triangulation leaves poses
+ untouched, hence identical bar heights, and BA moves both together, while the two independent BA solutions differ by only 0.287° (the remaining residual
+                                                     stems from the reference's OPENCV model family).
+
+
+A third and a fourth scene (Table 7, Fig. 8; re-run on the L20                     one image fewer and the same feature budget: the extra time
+with the main table's tier, which reproduces the Iluvatar                          is retry-and-regularise around a singular system, which is
+numbers to ≤0.21 dB, appendix C) were meant as routine                             also why it buys nothing.
+replication. On twocars — an 83-frame handheld orbit
+around two parked cars, i.e. a closed loop — the COLMAP                            5.9 An image-based arbitration that uses neither
+arm instead finished 2.71 dB below our own chain and 0.35                          reconstruction
+dB below even the bare Ω forward pass, so we examined the                          Held-out PSNR cannot settle this: if the reference geometry
+reference instead of our chain.                                                    is wrong, the arm that disagrees with it loses points, and
+Nothing announces the failure. The mapper registers                                “which geometry do the images support?” stays open.
+83/83 frames, returns 26316 points at 0.691 px mean                                Neither can each model's own reprojection error — the
+reprojection, exports cleanly, loads in nerficg and trains. Four                   reference reports 0.691 px on its own points, and route B
+things are wrong. (i) Inside 30 global BA rounds Ceres                             already taught us that the most self-consistent solution can
+reports Linear solver failure 42 times — a singular                                be the least correct (§3.3). We therefore score every
+Cholesky factorisation of the normal equations, i.e. a                             candidate against evidence that no reconstruction produced:
+rank-deficient sub-problem it had to regularise around (Table                      the two_view_geometries table of the database, i.e. SIFT
+8); the well-behaved traffic scene reports 0. (ii) The path                        inlier pairs accepted by two-view geometric verification, a
+itself is four near-collinear runs joined by teleports (Fig. 8a),                  verdict computed by the matcher from image data alone and
+whereas a hand-held orbit is a closed curve. (iii) The                             never touching mapping. For each image pair (frame gap ≥8
+per-frame camera step is not monotone: normalised steps                            so that a baseline exists; 767 pairs, ≤300 inlier pairs each,
+span 10-4–0.24 with cv=4.12 against 0.27 for our chain (Fig.                       155843 observations) we triangulate each inlier pair by DLT
+8b). Uniform sampling forces the physical floor ≈1/N; the                          under the candidate's own cameras and measure the
+reference sits at a quarter of that floor for sixty frames and                     reprojection residual, requiring cheirality and a triangulation
+then jumps ∼100× twice — no handheld operator moves like                           angle >0.5°. Two design decisions keep the comparison
+that. (iv) Mapping costs 681 s against 220 s on traffic with                       honest: lens distortion is ignored for every candidate
+
+
+
+                                                                              12
+(pinhole-only scoring), so that an OPENCV arm with eight                “registered”, and the model's implicit smoothness puts the
+parameters is not rewarded over a SIMPLE_RADIAL arm                     trajectory at the 1/N floor (Fig. 8b, cv=0.27). Our chain
+with four; and because the fraction of triangulable                     inherits that trajectory and refines it exactly once against
+observations differs between candidates (0.84 for the                   external SIFT evidence, with zero LM failures and 178 s of
+reference, 0.65 for ours — the closing loop puts more of the            front-end against 692 s (3.9×).
+shared matches behind our cameras), all statistics are                  What this does not show. (i) There is no ground-truth pose
+computed on the paired subset of 86350 observations                     for either clip; the arbitration measures consistency with
+triangulable under all five distinct camera models (the raw             verified image correspondences, not accuracy — and those
+and +tri rows of a network share one model).                            correspondences share the SIFT keypoints of both chains, so
+The verdict is unambiguous and it does not favour the                   a SIFT-wide systematic error would be invisible to it (the
+reference: 1.642 px p50 with p90 =25.1 px and 31.5% of                  two-view matrices, however, are estimated per pair and do
+observations above 4 px for COLMAP, against 0.636 px /                  not inherit either candidate's poses). (ii) traffic is the
+1.81 px / 2.0% for the Ω chain and 0.579 px / 2.03 px / 2.3%            counterexample we report deliberately: 0 LM failures, a
+for the V chain; paired per-observation, the Ω arm beats the            quality tie (26.92 vs 26.83, +0.09 dB) and no speed
+reference on 82.9% and the V arm on 73.7% of the shared                 advantage (234 s vs 241 s). (iii) This is not the classical
+evidence. The control scene behaves as it should: 0.245 px              failure mode of incremental SfM: no frame was dropped and
+versus 0.232 px, win rate 59.1% — a tie, so the test does not           no sub-model was produced. The honest statement is
+manufacture a verdict on its own. Read together with Table 7,           therefore scene-dependent, not “COLMAP is broken”:
+the images side with the arm that also reconstructs better,             incremental mapping can degrade silently on closed-loop
+and the +2.71 dB is not our chain beating a straw man but a             video, and deleting the incremental stage removes that
+symptom of the same underlying defect.                                  exposure. (iv) A practical corollary at zero cost: count Linear
+                                                                        solver failure lines and compute the step-profile cv of any
+Same chain, other network. Re-running the entire protocol
+with the VGGT-1B front-end turns the two-clip replication into          mapper output before feeding it to a downstream trainer —
+a 2×2 across scenes and networks (bottom three rows of                  both are readable from artifacts that already exist, and both
+each block of Table 7). VGGT-1B is the weaker front-end at              flagged this case.
+both clips — its raw poses sit at 0.85° against Ω's 0.18° on              Table 7 Two further scenes, re-run on the NVIDIA L20 with a training tier
+                                                                         identical to the main table (0.25 resolution /7000 steps /seed0, 11 held-out
+traffic and its verdict p50 is 2.01 px against 1.00 px — and
+                                                                        views). twocars is a handheld orbit around two parked cars (closed loop, 83
+its raw arm is the worst of all seven: -6.31 dB on traffic,               frames); traffic is a driving clip (82 frames). V denotes VGGT-1B and Ω
+and -1.77 dB on twocars, below even the collapsed                           denotes VGGT-Ω; the raw and +tri rows of a network share one set of
+                                                                           cameras and therefore one verdict column. “Δrot.” is the median rotation
+reference. Route A repairs it with the same two steps: on
+                                                                             residual against the same-scene COLMAP reference after Umeyama
+traffic, V+tri+BA lands at 26.55 dB (-0.28 dB from the                    absorbs scale and rigid freedom — but on twocars that reference is itself
+reference, verdict 0.255 px, win rate 51.4% — statistically                 what the next two columns put on trial, so there the column measures
+tied), recovering +6.03 dB of the raw deficit; on twocars it                    mutual disagreement, not accuracy. “verdict” and “>4px” are the
+                                                                         reconstruction-independent arbitration of §5.9 (share of pairs in %), scored
+recovers +3.68 dB over its own raw pass to 22.99 dB (+1.91                    for all arms in one unified batch over the five distinct camera models
+dB over the reference) and posts the strongest verdict of any            (COLMAP, both raw forward poses, both BA poses), on the paired subset
+candidate, 0.579 px with 2.3% of observations above 4 px                            of 86, 350/88, 263 observations triangulable under all five.
+
+(73.7% paired win rate against the reference). The repair is            arm          Δrot.(°)   verdict   >4px        PSNR    SSIM    LPIPS   ΔdB
+
+thus not an Ω-specific patch; it scales with the damage                 twocars — 83 frames, handheld closed-loop orbit
+
+(+3.68/+6.03 dB recovered for V against +2.36/+3.14 dB for              COLMAP       —          1.642     31.5        21.08   0.735   0.374   +0.00
+Ω), and wherever the reference is itself healthy both networks          Ω raw        83.2       1.643     26.8        21.43   0.717   0.269   +0.35
+finish within 0.3 dB of it. The bill of the V chain is dominated        Ω+tri        83.2       1.643     26.8        21.10   0.710   0.320   +0.02
+by the same BA stage (51+12 s on twocars, 107+41 s on                   Ω+tri+BA     83.2       0.636     1.9         23.79   0.813   0.254   +2.71
+traffic; the 518-resolution forward pass itself costs 7.7 s),           V raw        83.1       4.424     54.7        19.31   0.619   0.343   -1.77
+for a front-end total of 87 s against COLMAP's 681 s and 179            V+tri        83.1       4.424     54.7        19.37   0.626   0.382   -1.71
+s against 220 s. Figs. 9 and 10 carry the same ordering from            V+tri+BA     83.2       0.579     2.3         22.99   0.777   0.281   +1.91
+
+numbers to pixels and geometry: on twocars the collapsed                traffic — 82 frames, driving clip (control)
+
+reference renders as blurred as either raw pass while both              COLMAP       —          0.245     3.8         26.83   0.865   0.236   +0.00
+BA chains re-sharpen the car body, four network trajectories            Ω raw        0.177      0.998     15.1        23.78   0.763   0.231   -3.05
+lie on one closed orbit against the reference's open                    Ω+tri        0.177      0.998     15.1        23.79   0.764   0.286   -3.04
+four-segment path, and on that scene only the BA chains                 Ω+tri+BA     0.065      0.232     3.8         26.92   0.880   0.190   +0.09
+produce a sparse, compact initial cloud.                                V raw        0.851      2.008     20.1        20.52   0.609   0.351   -6.31
+                                                                        V+tri        0.851      2.008     20.1        21.10   0.647   0.396   -5.73
+Why the feed-forward pass survives it. The collapse lives
+                                                                        V+tri+BA     0.127      0.255     3.8         26.55   0.861   0.219   -0.28
+in the incremental loop: closed-loop video makes the closing
+frames jointly explainable by several sub-graphs, local BA
+problems become near-rank-deficient, and each retry
+perturbs the neighbours. A single forward pass has no such
+stage — all frames are aggregated at once, nothing is
+
+
+
+                                                                   13
+Table 8 Front-end cost and solver health on the two new scenes (identical             Table 9 Measured BA cost (same database.db, same container, idle
+ database, identical machine, wall clocks in seconds). “feat”/“match” is the        machine, OMP_NUM_THREADS=8). BA wall clock is approximately linear in the
+ SIFT database both chains pay for and the only part they share; “map” is              number of observations: 0.27M→68s, 0.50M→117s, 1.91M→291s.
+       incremental mapping, “net” the network forward pass (load +
+                                                                                                                   Wall       Final
+pre-processing + inference) and “post” our own geometry post-processing             Run                                                  Note
+                                                                                                                   clock(s)   cost(px)
+(triangulation + BA + filtering); “BA” counts global BA invocations and “LM”
+                                                                                                                                         2 sub-models / 83 images
+    counts Linear solver failure lines, i.e. Ceres reporting a singular             colmap mapper (default BA)     184        0.565
+                                                                                                                                         / 32690 points
+   Cholesky factorisation of the normal equations that it had to regularise
+                    around; “reg.” is frames registered.                            mapper (BA iterations off)     87         1.648      83 images / 37315 points
+                                                                                                                   ≈97                   35 global + ≈81 local calls,
+chain        total   feat    match     map    net   post   BA   LM   reg.           ⇒ BA inside the mapper                    —
+                                                                                                                   (53%)                 ≈1s each
+twocars — 83 frames, handheld closed-loop orbit                                                                                          bit-identical to 60/100
+                                                                                    our BA round 1 (30 iterations) 57         0.33855
+                                                                                                                                         iterations
+COLMAP       692     6       5         681    —     —      30   42   83/83
+                                                                                    our BA round 1 (100
+route A      178     6       5         —      60    107    1    0    83/83                                         142        0.33855    NO_CONVERGENCE
+                                                                                    iterations)
+traffic — 82 frames, driving clip (control)                                         our BA round 1 (300                                  PSNR 25.08 vs 24.97:
+                                                                                                                   171.6      0.37900
+                                                                                    iterations)                                          noise
+COLMAP       241     5       16        220    —     —      30   0    82/82
+                                                                                    point_filtering + BA round 2                         CONVERGENCE (18
+route A      234     5       16        —      77    136    1    0    82/82                                         24         0.31747
+                                                                                    (50)                                                 iterations)
+
+5.10 Per-view behaviour and qualitative results                                     self-generated-track BA                              CONVERGENCE, but
+                                                                                                                   291        0.256
+                                                                                    (1.91M observations)                                 poses get worse
+Fig. 11 gives the per-view PSNR of the 11 held-out views.                           The A/B experiment in Table 9 (same database.db, same
+The curve shapes of the six arms agree (view 0 easiest, view                        container, idle machine, 8 threads) shows that COLMAP's BA
+6 hardest) but the spacing widens with difficulty: on the                           accounts for ≈97 s (53%) of the mapper, but that this is the
+hardest view COLMAP gives 23.29 dB, Ω+BA 24.40 dB,                                  accumulated cost of 35 global plus ≈81 local calls, 1 s on
+Ω+triangulation 22.03 dB, bare Ω 19.18 dB, bare VGGT                                average. Note that the mapper sets print_summary to
+17.80 dB. The farther a held-out view lies from the training                        false[2], so no BA report appears in the log — which is why
+trajectory, the larger the leverage of pose/intrinsics error —                      “BA is the slowest stage” could never be confirmed from logs;
+consistent with the geometry of Eq. (1) (pixel displacement of                      BA inside the COLMAP 4.0.4 mapper is also synchronous
+an extrapolated view ∝f·Δθ, so an over-long focal length and                        and serial, not overlapped with the registration loop.
+an angular bias add up in the same direction). The qualitative
+                                                                                    We demote BA to two global solves at the end of inference:
+comparison in Fig. 12 shows the same: the floaters and
+                                                                                    round 1 (30 iterations) 57 s, filtering 3 s, round 2 (cap 50,
+“painted-wall” overexposure of the bare forward passes
+                                                                                    converges after 18 iterations) 21 s, plus 22 s of triangulation,
+essentially disappear after BA, and on hard views Ω+BA is
+                                                                                    i.e. ≈106 s in total; keeping 100 iterations in round 1 gives
+hard to distinguish from COLMAP.
+                                                                                    ≈191 s. The cost is linear in the number of observations (Fig.
+                                                                                    13, right), so it can be compressed further by -
+                                                                                    -Mapper.tri_ignore_two_view_tracks 1 (drop short tracks)
+                                                                                    or by switching to a sequential_matcher.
+
+                                                                                    6.2 End-to-end net bill
+                                                                                    Fig. 14 (right) gives the front-end net bill (83 frames):
+                                                                                    COLMAP production script 148.96 s; VGGT front-end 83.90
+                                                                                    s, ≈194 s with BA (≈144 s for the 30-iteration variant); Ω
+                                                                                    front-end 104.50 s, ≈296 s with BA (≈211 s for the
+                                                                                    30-iteration variant). In other words, on material that
+                                                                                    COLMAP can map without trouble, the motivation “use a
+                                                                                    network to save time” largely stops holding once BA is
+                                                                                    added. Training is unaffected by the front-end (7000 steps:
+                                                                                    159–203 s on one card, fewer points being faster); the three
+                                                                                    end-to-end chains (front-end + training + rendering +
+           Figure 11 Per-view PSNR over the 11 held-out views.                      evaluation) take 537.19 s (COLMAP), 465.74 s (VGGT) and
+                                                                                    554.23 s (Ω).
+6 Runtime and cost                                                                  So where is the value of a network front-end? On this
+                                                                                    sequence we see three candidates: (i) all frames registered:
+6.1 Where BA is actually expensive
+                                                                                    the network registers 83/83 whereas the mapper produces 2
+                                                                                    sub-models and 221 registration attempts on the same data
+                                                                                    (the cost of the failed retries is not even counted in the
+                                                                                    successful path); (ii) budgetable cost: we have exactly two
+                                                                                    deterministic terms, matching plus one BA, and no “failed
+                                                                                    registration / split / manual merge / re-run” term; (iii)
+                                                                                    initialization quality: the network provides a coherent bias,
+                                                                                    which makes “one global BA” a sufficient operation, whereas
+
+
+                                                                               14
+ Figure 8 Silent collapse of incremental mapping on a closed-loop video (twocars, 83 frames, L20). a: the two camera paths overlaid after Umeyama; the fit
+residual is 37% of the trajectory diagonal, i.e. the two paths are not co-registerable — the reference consists of four near-collinear runs joined by jumps, ours
+is the closed orbit the clip was shot as. b: per-frame normalised camera step (log axis). Uniform sampling implies a flat profile at 1/N (dashed); our chain sits
+ on that floor (cv=0.27), the reference stalls near a quarter of it and jumps ∼100× twice (cv=4.12). c: control scene traffic — the same two chains coincide
+  to 0.065°. d: reconstruction-independent verdict (§5.9): shared SIFT two-view inlier pairs, DLT-triangulated under each of the five distinct camera models
+                            spanning both networks, paired subset; bars are p50 reprojection with the fraction above 4 px underneath.
+
+
+COLMAP has to find an initialization itself through the                             we treat anything within ±0.3 dB as noise. The residual of
+incremental loop. Whether these three properties outweigh                           VGGT, -1.13 dB in protocol B, -0.67 dB in protocol A and
+the extra wall clock depends on the scene and on the                                -0.58 dB on the second scene, shows that one BA round
+production constraints; one observed registration failure                           does not fully bring the weaker VGGT initialization up to
+shows that the failure mode exists, it does not show that a                         COLMAP level; the residual has the same magnitude
+network front-end is generally more robust. Conversely, on                          (0.6∼1.1 dB) across two scenes and three training tiers, i.e. it
+material that COLMAP maps without trouble the net benefit of                        is a systematic gap rather than a property of one clip.
+the network front-end is close to zero — a boundary we want                         Why one BA round absorbs feed-forward bias but not
+to state explicitly.                                                                random perturbation. This is a direct consequence of the
+                                                                                    least-squares parameterisation and needs no extra
+7 Discussion and limitations                                                        machinery. The unknowns of BA are the 7N camera
+Scope of the conclusions. We use two real videos: an                                parameters (plus 2N intrinsics here) and the 3D points, so it
+83-frame driving sequence (weakly textured ground,                                  can only shrink residuals along directions that the
+occluding vehicles), which carries the full 20-arm matrix, and                      low-dimensional parameterised subspace can express. The
+a 191-frame close-range orbit sequence (redcar, the                                 error of a feed-forward network over one scene is coherent
+seven-arm replication of §5.7); both are trained for 7000                           — one smooth drift, one systematically long focal length,
+steps under the same protocol. Absolute PSNR is not                                 distortion identically zero — which lies almost entirely inside
+comparable with public benchmarks (both resolution and step                         what camera parameters can express, so a single
+count are far below 3DGS-paper settings), but differences                           Levenberg–Marquardt run absorbs it wholesale (+4.44/+5.12
+between arms under identical settings are comparable, and                           dB in Table 1). The artificial per-frame independent rotations
+
+
+                                                                               15
+ Figure 9 Qualitative held-out renders on the two new scenes (L20, tier A; the same test frame per scene). Top twocars: the collapsed COLMAP reference
+renders as blurred as either raw forward pass — wrong geometry earns no credit for being “the reference” — while both BA chains re-sharpen the car body
+  and the curb lines. Bottom traffic (control): all five arms sit close to the ground truth and to each other; this is what a healthy scene looks like for every
+                                                                              chain.
+
+
+we inject, by contrast, contain high-frequency components                          suppress with point_filtering and a robust kernel but do
+that shared camera parameters cannot express and can only                          not model.
+be damped by adding independent observations, which is
+why the same angular magnitude produces a far steeper loss                         8 Conclusion
+(-10.9 dB/° near the origin, Fig. 4 right). This is also why we
+                                                                                   On a domestic AI-accelerator platform we detached
+do not read the perturbation curve as a measurement: it
+                                                                                   COLMAP's “triangulation + bundle adjustment” from the
+bounds how much pose error 3DGS tolerates, not how much
+                                                                                   incremental mapping loop and used them as a one-shot
+of the front-end's loss is attributable to pose. The operational
+                                                                                   post-processing of a feed-forward front-end (VGGT /
+corollary: the coherence of a front-end's error bounds the
+                                                                                   VGGT-Ω): triangulate under frozen network poses to rebuild
+gain of this kind of post-processing. If some future
+                                                                                   a 3D point set consistent with external SIFT observations,
+network produced white-noise-like per-frame pose error, this
+                                                                                   then run one global BA with poses, focal length and distortion
+pipeline would not help as much; every current video-style                         free, with a point-filtering round in between and a second BA
+feed-forward network outputs smooth trajectories, so the gain
+                                                                                   after it. These five steps alone recover 4.4–7.5 dB of the
+is systematic rather than lucky.                                                   feed-forward front-end's loss in 3DGS down to 0.10 dB (Ω)
+Relation to the VGGT-Ω paper. Ω's accuracy numbers                                 and 1.13 dB (VGGT), and calibrate the distortion coefficients
+(camera AUC etc.) refer to the bare network output; the BA in                      the network never estimates. We also state the two
+the paper belongs to the annotation side and is driven by                          necessary conditions for this to work (correspondence must
+external correspondences[7]. Our contribution is therefore                         be independent of the network; the network dense cloud
+not “inventing something the paper lacks” but moving a                             should enter neither the residuals nor the 3DGS initialization)
+classical component from the annotation stage to inference                         and the price (on this sequence the front-end speed
+and proving it decisive for downstream 3DGS. There is a                            advantage largely disappears, so the case for the chain rests
+product implication: the public evaluation metrics of                              on a predictable post-processing cost and on scenes where
+feed-forward networks (AUC, AbsRel) and downstream                                 incremental registration fails, not on raw speed). One of the
+reconstructability have a gap — k1≡0 is the most typical                           four scenes also showed the other direction of the same
+instance, and +1.2 dB of our own chain's gain (protocol                            story: on a closed-loop handheld video the incremental
+A→B) comes almost entirely from it.                                                mapper failed silently — every frame registered, a
+Open problems. (1) The network dense point map is still                            plausible-looking model exported — and only a solver-failure
+useless for 3DGS initialization: as a replacement (graft) it                       count, a non-physical step profile and an image-based
+costs -2.8 to -3.2 dB, and as a union (fusion, Eq. (2)) still                      arbitration built outside both reconstructions exposed it, at
+-0.45 to -1.13 dB while inflating the Gaussian count by 77%                        which point our chain was +2.71 dB better and 3.9× cheaper.
+and training wall-clock by 75% (Section 5.6); matching the                         For practitioners who want to replace an SfM front-end with a
+injection quantile only recovers part of it (-0.45∼-0.55 dB).                      feed-forward network our recommendation is: use the
+What is needed is dense geometry as a weighted soft                                network as a good initialization generator and keep
+constraint rather than a point observation (a term                                 classical BA at the end of inference, rather than
+λρ(|X-proj(Xnet)|2) in the training objective, or modulating the                   expecting end-to-end replacement of the optimization.
+densification threshold where c>τ); (2) we reuse the SIFT                          [1] Kerbl B, Kopanas G, Leimkühler T, Drettakis G. 3D Gaussian splatting for
+                                                                                        real-time radiance field rendering[J]. ACM Transactions on Graphics,
+database of the production pipeline, which is free for
+                                                                                        2023, 42(4): 139:1–139:14.
+COLMAP users but not for a setting that wants no matching                          [2] Schönberger J L, Frahm J M. Structure-from-motion revisited[C]//Proc.
+at all — then another independent source of correspondence                             IEEE Conf. Computer Vision and Pattern Recognition (CVPR). 2016:
+is needed (LoFTR[11]/RAFT-style dense matching, or                                     4104–4113.
+
+temporal and IMU priors); (3) dynamic objects (moving                              [3] Schönberger J L, Preisach G, Niemasz K, et al. Structure-from-motion with
+                                                                                        incremental mapping and bundle adjustment in the loop[C]//Eur. Conf.
+vehicles) form systematic outliers in the tracks, which we                              Computer Vision (ECCV). 2020.
+
+
+
+                                                                              16
+  Figure 10 Camera trajectories and initial point clouds of the five models (same scenes). Top: paths after Umeyama alignment to the COLMAP reference,
+plotted in its principal plane — on twocars the reference is the open four-segment path (gray) while all four network paths lie on one closed orbit; on traffic
+all five coincide. Middle/Bottom: the initial point clouds fed to 3DGS (RGB, PCA view): the collapsed reference is a near-planar sliver; the raw network point
+       maps are dense but carry their own scale and a low-confidence haze; the BA clouds are sparse, compact and clean — the kind of initialisation the
+                                                            point-cloud ablation (§5.3) shows to matter.
+
+[4] Agarwal S, Mierle K, Szeliski R, et al. Bundle adjustment in the large:
+    scalable modern implementations[C]//Eur. Conf. Computer Vision
+    (ECCV). 2010.
+[5] Lowe D G. Distinctive image features from scale-invariant keypoints[J].
      International Journal of Computer Vision, 2004, 60(2): 91–110.
-                                                                                  移植后的训练吞吐：7000 步单卡 137–222 s。需要提醒的是
 [6] Wang J, Chen M, Karaev N, Vedaldi A, Rupprecht C, Novotny D. VGGT:
     Visual geometry grounded transformer[C]//Proc. IEEE/CVF Conf.
-                                                                                  ：本平台的任何精度/崩溃问题都应先用 CUDA_VISIBLE_DEVic
-    Computer Vision and Pattern Recognition (CVPR). 2025: 5942–5954.               E 单卡复现排除并发干扰。
+    Computer Vision and Pattern Recognition (CVPR). 2025: 5942–5954.
     arXiv:2503.11651.
 [7] Wang J, Chen M, Zhang S, Karaev N, Schönberger J, Labatut P,
     Bojanowski P, Novotny D, Vedaldi A, Rupprecht C. VGGT-Ω[EB/OL].
-                                                                                  附录 C 复现要点与脚本清单
-    arXiv:2605.15195, 2026.                                                       code/ 目录（与容器内 /root/cmp_test/wzong_eval/bin/ 一
-[8] Wang S, Leroy V, Cabon Y, et al. DUSt3R: Geometric 3D vision made             致）：run_matrix.sh（20 档矩阵，每档独立 MODEL_NAME/独
+    arXiv:2605.15195, 2026.
+[8] Wang S, Leroy V, Cabon Y, et al. DUSt3R: Geometric 3D vision made
     easy[C]//Proc. IEEE/CVF Conf. Computer Vision and Pattern Recognition
     (CVPR). 2024.
-                                                                                  立 GPU）、run_ba_arm.sh（路线 A 一键：导出 → 三角化
-[9] Sarlin P E, Cadena C, Siegwart R, Dymczyk R. SuperGlue: Learning              → BA → 过滤 → BA → 过滤 → graft → 配置）、
-    feature matching with graph neural networks[C]//Proc. IEEE/CVF Conf.          run_undist_arm.sh（口径 B）、run_one.sh（训练 + 留出评
-    Computer Vision and Pattern Recognition (CVPR). 2020.                         测）、colmap_frames.py（frames.bin/cameras.bin 读写与
-[10] Lindenberger P, Arpinin S, Sarlin P E, et al. LightGlue: Local feature       位姿改写）、mk_vggt_sparse2.py（网络位姿 → COLMAP
+[9] Sarlin P E, Cadena C, Siegwart R, Dymczyk R. SuperGlue: Learning
+    feature matching with graph neural networks[C]//Proc. IEEE/CVF Conf.
+    Computer Vision and Pattern Recognition (CVPR). 2020.
+[10] Lindenberger P, Arpinin S, Sarlin P E, et al. LightGlue: Local feature
     matching at light speed[C]//Proc. IEEE/CVF Int. Conf. Computer Vision
-    (ICCV). 2023.                                                                 模型）、mk_grid_tracks.py（路线 B 自证轨迹）、
-[11] Sun J, Shen Z, Wang Y, et al. LoFTR: Detector-free local feature             mk_ba_plus_vgpts.py（Sim3 graft 网络点云）、
-    matching with transformers[C]//Proc. IEEE/CVF Conf. Computer Vision           geom_diff.py（Umeyama 位姿/内参残差）、cmpba2.py（两
+    (ICCV). 2023.
+[11] Sun J, Shen Z, Wang Y, et al. LoFTR: Detector-free local feature
+    matching with transformers[C]//Proc. IEEE/CVF Conf. Computer Vision
     and Pattern Recognition (CVPR). 2021.
-                                                                                  份 BA 解逐位对拍）、ba_vs_mapper.sh/ba_ab.sh（BA 成本
 [12] Lin H, Peng S, Sun H, et al. VGGSfM: Visual geometry grounded deep
-                                                                                  A/B）、perview.py（逐视角 PSNR）、paper_meta.py（元
     structure from motion[C]//Proc. IEEE/CVF Conf. Computer Vision and
-    Pattern Recognition (CVPR). 2024.                                             数据与轨迹长度统计）。数据与图表生成：
-[13] Hahlbohm F, Franke L, Eisemann M, Magnor M. Faster-GS: Analyzing             tools/make_figs.py。关键命令：
+    Pattern Recognition (CVPR). 2024.
+[13] Hahlbohm F, Franke L, Eisemann M, Magnor M. Faster-GS: Analyzing
     and improving Gaussian splatting optimization[EB/OL]. arXiv, 2026.
-                                                                                  colmap point_triangulator --database_path $DB --image_path $IMG \
-                                                                                    --input_path $M --output_path $M --clear_points 1 \
-附录 A COLMAP 4.0.4 二进制格式与三个坑                                                         --refine_intrinsics 0 --Mapper.tri_min_angle 0.5 \
-                                                                                    --Mapper.tri_ignore_two_view_tracks 0 --Mapper.num_threads 8
-坑 1：位姿真正存储在 frames.bin。4.0 引入 rig/frame 重构                                        colmap bundle_adjuster --input_path $IN --output_path $OUT \
-                                                                                    --BundleAdjustment.refine_focal_length 1 \
-，bundle_adjuster/point_triangulator 读取 rigs.bin +                                   --BundleAdjustment.refine_extra_params 1 \
-frames.bin，其中每条 frame 记录为 frame_id:i32 |                                            --BundleAdjustmentCeres.max_num_iterations 30
-                                                                                  colmap point_filtering --input_path $IN --output_path $OUT \
-rig_id:i32 | 7×f64(q , q , q , q , t , t , t ) | 20 B                               --max_reproj_error 4 --min_tri_angle 1.5   # 注意无 PointFiltering. 前缀
-                           w     x    y     z    x    y     z
-尾部（本例记录长 84 B；解析时用 len(body)//n 反推记录长
-更稳），images.bin 中的 (q, t) 只是派生量。我们早期版本的                                            附录 D 全部 20 个档位的完整结果
-导出脚本只改了 images.bin，frames.bin 原样拷贝                                                表 4 给出本文全部档位（含口径 A/口径 B、消融档与位姿扰
-COLMAP 模板 ⇒ 后续三角化/BA 一直在用 COLMAP 自己的                                              动档）的完整留出集指标，便于核对正文中任何一处差值。表
-位姿，网络位姿被完全忽略，并因此得到过"Ω+BA 与                                                        中"三维初值来源"一列即本文与官方前馈束调整的分歧点：官
-COLMAP 打平"的虚假结论。识别方法：对导出模型与网络原                                                    方为"查询帧像素处查表取网络稠密点图"，本文为"外部 SIFT
-始模型做位姿差统计——若逐位为 0.0000°，说明网络位姿根                                                   内点在冻结位姿下三角化"。
-本没写进去。坑 2：cameras.bin 的 model_id 编号与 3.x 不
-同（实测 1=PINHOLE(4 参数)、2=SIMPLE_RADIAL(4 参数)、
-0=SIMPLE_PINHOLE(3 参数)），按 3.x 编号解析会把 (f , f , c ,
-                                               x y x
-cy) 整体错一位。稳妥做法：按文件大小反推参数个数。坑 3
-：手写模型的 error 字段不可用于自检。model_analyzer 的
-平均重投影读的是存储的 error 字段（手写为 0），自检必须
-用 bundle_adjuster - -max_num_iterations 1 报出的
-Initial cost。此外 bundle_adjuster/point_filtering 的
-output_path 必须预先存在，否则报错并在后续
-point_filtering 处 core dump；point_filtering 的选项不
-带 PointFiltering. 前缀。
-
-附录 B Faster-GS / nerficg 在 CoreX-5.0 上的移植
-要点
-本实验的训练后端是 nerficg 内的 Faster-GS 在天数
-CoreX-5.0 上的移植：(i) 排序内核 sort_radix_by_key 替换
-为 at::sort(stable=true) 两次调用；(ii) glm::fast* 在
-ivcore11 下退化为 std:: 版本（约慢 4.5×，实测非瓶颈，故
-不做位级近似以免破坏黄金比对）；(iii) 关闭 -
--use_fast_math，并要求训练与评估全程一致；(iv) 修复
-autograd 尾部累加（acc
-
-grad += grad）与 ivcore11 的 numeric_limits<>{::max()}
-/{::lowest()}、::nanf；(v) morton CUDA kernel 在本平台
 
 
-                                                                              7
-表 4 全部 20 个档位的完整留出集结果（同一次干净矩阵重跑：83 帧、训练分辨率缩放 0.25、7000 步、TEST_STEP=8 留出 11 张、RANDOM_SEED=0；每档独
-立 MODEL_NAME 与独立 GPU）。口径 A 使用原始畸变图像，口径 B 各档用自身标定的 k1 去畸变。加粗为本文链路与 COLMAP 参照。最后三行是人为旋转扰
-                                  动的敏感度档位（口径 B，非链路对比档）。
-      档位                 前端配置                               三维初值来源           PSNR    SSIM    LPIPS   高斯数
+Appendix A COLMAP 4.0.4 binary format: three
+traps
 
-      口径 A（原始畸变图像）
 
-      cmap_raw           COLMAP 全流程（参照）                     COLMAP SIFT+BA   25.77   0.837   0.234   626616
-      omega              Ω 裸前向（网络点图）                        无（网络点图）          21.35   0.674   0.326   697889
-      omegatri           Ω + 三角化（位姿冻结）                      SIFT 三角化         23.01   0.741   0.290   651023
-      omegatriba         Ω + 三角化 + BA（本文）                   SIFT 三角化+BA      25.79   0.843   0.219   634702
-      omegatriba_vgpts   Ω + BA，但用网络点图初始化                   SIFT 三角化+BA      22.99   0.766   0.264   715366
-      vggt               VGGT 裸前向（网络点图）                     无（网络点图）          19.98   0.596   0.427   635674
-      vggttri            VGGT + 三角化（位姿冻结）                   SIFT 三角化         20.99   0.641   0.372   627185
-      vggttriba          VGGT + 三角化 + BA（本文）                SIFT 三角化+BA      25.10   0.811   0.253   —
-      vggttrilong        VGGT + 三角化 + BA，第 1 轮 300 迭代       SIFT 三角化+BA      25.02   0.811   0.255   622666
-      vggttriba_vgpts    VGGT + BA，但用网络点图初始化                SIFT 三角化+BA      21.90   0.709   0.341   695987
-      vggtgrid           路线 B：自证轨迹（无 BA）                    网络点图自投影          19.99   0.600   0.407   621609
-      vggtgridba         路线 B：自证轨迹 + BA                     网络点图自投影          20.04   0.601   0.403   —
-
-      口径 B（各家自标定 k1 去畸变）
-
-      cmap               COLMAP 全流程（去畸变，参照）                 COLMAP SIFT+BA   26.82   0.877   0.203   477211
-      omegau             Ω 裸前向（去畸变）                         无（网络点图）          21.74   0.706   0.308   665745
-      omegatribau        Ω + 三角化 + BA（去畸变，本文）               SIFT 三角化+BA      26.72   0.875   0.198   —
-      vggtu              VGGT 裸前向（去畸变）                      无（网络点图）          19.30   0.588   0.425   573660
-      vggttribau         VGGT + 三角化 + BA（去畸变，本文）            SIFT 三角化+BA      25.69   0.836   0.236   —
-      cp06               扰动实验：COLMAP 位姿旋转 0.6°              COLMAP SIFT+BA   20.29   0.584   0.399   543342
-      cp13               扰动实验：旋转 1.3°                       COLMAP SIFT+BA   17.55   0.505   0.503   425435
-      cp26               扰动实验：旋转 2.6°                       COLMAP SIFT+BA   16.34   0.482   0.561   340567
+                                                                              17
+Figure 12 Qualitative comparison (3 held-out views × 6 arms, 480×270; the number in the corner of each tile is the per-view PSNR). First row (one of the
+  hardest views): the bare forward passes show ground streaking and ghosting on the vehicles; triangulation repairs the structure; after BA the result is
+                                               essentially indistinguishable from the COLMAP reference.
 
 
 
 
-                                                        8
+Figure 13 Left: iteration cap of the first global BA round versus wall clock; 30, 60 and 100 iterations give bit-identical solutions (shaded), 300 buys nothing.
+                                               Right: BA wall clock grows linearly with the number of observations.
+
+
+
+
+                                                                              18
+Figure 14 Left: A/B measurement of BA's share inside COLMAP, compared with our one-shot BA (reprojection error below each bar). Right: wall clock of
+                                                             each front-end stage.
+
+
+
+
+                                                                        19
+Trap 1: poses really live in frames.bin. COLMAP 4                      tile keys → n_buckets overflow); we rewrite the primitives
+introduced        the         rig/frame       refactor;                from absolute-source-lane shuffles and make every early exit
+bundle_adjuster/point_triangulator read rigs.bin +                     domain-uniform (89 tagged substitutions in 5 kernel files; a
+frames.bin, where each frame record is frame_id:i32 |                  kernel-internal counter then reports zero mismatches). (ii)
+rig_id:i32 | 7×f64(qw, qx, qy, qz, tx, ty, tz) | 20B                   That cooperative path, although now correct, is not faster —
+tail (84 B per record in our case; derive the record length as         165s vs 163s at 0.25×, and 267s vs 259s at 0.5× in the same
+len(body)//n rather than hard-coding it), and the (q, t) in            session, quality equal up to float ordering — so the shipped
+images.bin are derived. Our first export script rewrote only           default remains the plain sequential enumeration
+images.bin and copied frames.bin from the COLMAP                       (FGS_COOP32=1 re-enables it). (iii)
+template ⇒ all subsequent triangulation/BA silently used               cub::DoubleBuffer::selector is not flipped consistently, so
+COLMAP's own poses, the network poses were ignored                     Current() can hand back the unsorted buffer; we pin it. (iv)
+entirely, and we obtained a spurious “Ω+BA equals                      The implicit ordering between a created stream and the
+COLMAP” result. Detection: compute the pose difference                 legacy default stream is not implemented, and that — not
+between the exported model and the raw network model — if              memory planning — is the real cause of the reported Tried
+it is exactly 0.0000°, the network poses were never written.           to allocate 7687.50 GiB “OOM”: a racing memset corrupts
+We have since audited the equivalence instead of assuming              instance_ranges, hence n_buckets, hence a numel overflow,
+it (stale_bin.py): across 39 models written by COLMAP                  which no amount of memory would have satisfied. (v) Header
+4.0.4 on CoreX-5.0 and 11 by 4.1.1 on CUDA, the legacy                 and libcu++ gaps (std::max, numeric_limits, ::nanf, and
+pose in images.bin agrees with the frame-derived pose to               cub::Max dropped by CUDA 13 on the other platform), plus
+0.000° and 0.0000 in translation; and a synthetic +5° rotation         ENABLE_FASTMATH deliberately off so that the two platforms
+injected into images.bin alone leaves cam_from_world()                 stay bit-comparable. Faster-GS ships its own Adam,
+completely unchanged while the raw field moves by exactly              densification, 3D filter, rasterizer and sort (4853 lines
+5.000°, which proves the API reads frames.bin and that the             compiled into one extension) and never links
+detection rule above has no false negatives. One of our own            diff_gaussian_rasterization — hence the vendor's accel
+alarms is retracted here: during the new-scene runs a reader           branch cannot influence this path; the only nerficg CUDA
+reported a 9.4 disagreement between the two files, and it was          piece it uses is the Morton encoder (0.7ms to encode,
+a wrong record stride in that reader, not COLMAP behaviour             torch.argsort 6.2ms at 1.1M Gaussians, invoked at most
+— the audit tool is therefore also a regression test for the           3× in 30000 steps), i.e. the kernel that once made nerficg
+reader. Trap 2: the cameras.bin model_id numbering                     runs take hours is off the critical path. We also eliminate the
+differs from 3.x (measured: 1=PINHOLE (4 parameters),                  most tempting explanation for the residual 2× gap: idle cards
+2=SIMPLE_RADIAL (4), 0=SIMPLE_PINHOLE (3)); parsing with               report 500MHz against a 1750MHz maximum, but under load
+3.x numbering shifts (fx, fy, cx, cy) by one slot. Robust              they run at 1750MHz at 78–98W of a 450W cap with
+approach: infer the number of parameters from the file size.           84–100% utilisation — no clock lock and no power cap, so the
+Trap 3: the error field of a hand-written model cannot be              remaining 41 vs 85it/s difference belongs to code generation
+used for self-checks. model_analyzer reports the mean                  and microarchitecture, not to configuration.
+reprojection error from the stored error field (written as 0 by
+us); self-checks must use the initial cost reported by                 Appendix C Cross-platform check on NVIDIA L20
+bundle_adjuster - -max_num_iterations 1. Moreover the                  (summary)
+output_path of bundle_adjuster/point_filtering must
+                                                                       The three headline configurations re-run verbatim on an
+already exist, otherwise the run errors out and a later
+                                                                       NVIDIA L20 (CUDA 13.0, PyTorch 2.13, dedicated card)
+point_filtering core-dumps; and point_filtering options
+                                                                       agree with the Iluvatar results to ≤0.21 dB, below our 0.3 dB
+carry no PointFiltering. prefix.
+                                                                       re-run floor; SSIM and LPIPS match configuration by
+                                                                       configuration, Gaussian counts agree within 0.7%, and “Ω +
+Appendix B Platform port to CoreX-5.0                                  triangulation + BA equals COLMAP” holds on CUDA as well
+(summary)                                                              (25.77 vs 25.62). The L20 is only 10–23% faster end to end,
+The full text of this appendix and of the cross-platform check         because the ported backend approaches it and because data
+(main-paper Appendices B and C) lives in the companion file            loading plus evaluation is about a third of the wall clock.
+appendix_en.tex / appendix_en.pdf; we summarise the                    Caveat: the L20 arms ran sequentially on one card while the
+results here. The training backend is our port of Faster-GS            Iluvatar matrix ran one dedicated card per arm, so absolute
+(inside nerficg) to Iluvatar CoreX-5.0. Measured against               wall times are nominal.
+upstream (ae2bf80) it is 13 files, +646/-177 lines, plus a
+171-line compatibility header, whereas the same tree on the            Appendix D Gaussian-rasterization backends:
+L20 needs one functional line. Five root causes, each with a           which optimizations pay (summary)
+measurable signature. (i) The hardware warp is 64 lanes
+wide but __ballot_sync still returns a 32-bit mask and __fns
+crashes the vendor compiler, so Faster-GS's
+warp-cooperative tile enumeration fails silently (instances
+reserved ≠ written → holes in the instance buffer → invalid
+
+
+                                                                  20
+The full version of this appendix — branch genealogy and                  mk_grid_tracks.py (route B self-generated tracks),
+code-level attribution, the call-convention trap, the crossover,          mk_ba_plus_vgpts.py (Sim3 graft of the network cloud),
+the sparse-Adam measurement and both result tables —                      mk_fused_sparse.py (union fusion: SIFT points ∪
+lives in the companion file appendix_en.tex /                             confidence-filtered network points), geom_diff.py (Umeyama
+appendix_en.pdf; the headline is that the accelerator                     pose/intrinsic residuals), cmpba2.py (bitwise comparison of
+vendor's claim that an “optimized 3DGS rasterizer” makes                  two BA solutions), ba_vs_mapper.sh/ba_ab.sh (BA cost A/B),
+Faster-GS redundant does not survive measurement.                         perview.py (per-view PSNR), paper_meta.py (metadata and
+Attribution. The vendor's accel branch is byte-identical to               track-length statistics). Scenes 3–4 (code/scenes/,
+upstream's October-2024 integration of the Taming-3DGS                    code/pipeline/run_front.sh / run_arm31.sh /
+drop-in rasterizer (fused and sparse Adam, DC/residual-SH                 run_train31.sh / extract_frames.py): fwd_omega.py
+decoupling, contribution-bound culling, per-tile bucketing);              (batched VGGT-Ω forward pass), mkcfg31.py (derives the
+the vendor contribution is the CoreX port, not rasterizer work.           four nerficg configs of a scene from one template),
+A trap that changes conclusions. accel requires the split                 ba_health.py (parses a mapper log into wall clocks,
+dc/shs call convention, but nerficg still calls it the legacy way;        global-BA rounds and Linear solver failure counts),
+on strict CUDA the null pointer faults at step 0, whereas on              geom_diff2.py (frame-derived poses only; Umeyama
+the accelerator's unified-addressing runtime the call silently            residuals plus the per-frame step-profile cv — the successor
+succeeds and trains a different model (the DC term frozen,                of geom_diff.py), pair_reproj_check.py (§5.9: DLT of
+every higher-order SH coefficient shifted by one slot).                   shared SIFT inlier pairs under each candidate, with the
+Repairing the three call sites moves the accelerator's 7,                 paired-subset and win-rate tables), stale_bin.py (the
+000-step result from 24.59 dB to 24.96 dB, makes it 16%                   images.bin/frames.bin audit of appendix A), dump_traj.py
+faster, and collapses the previously reported “platform quality           (trajectory export for Figs. 8 and 10). Figures and tables:
+gap” from ≈0.4 dB to 0.04 dB: it was a wiring bug, not                    tools/make_figs.py, tools/make_fig12.py,
+hardware. Any cross-vendor accuracy comparison must                       tools/make_fig13.py and tools/make_fig14.py
+therefore verify the backend's call convention first.                     (FIG_LANG=en for the English version). Key commands:
+Measurements. The accel branch has a resolution/density                   colmap point_triangulator --database_path $DB \
+crossover: inside nerficg at 0.25× it is a net loss (233s vs                --image_path $IMG \
+                                                                            --input_path $M --output_path $M --clear_points 1 \
+196s), at 0.5× a 1.28× gain (288→225s on the L20), and at                   --refine_intrinsics 0 --Mapper.tri_min_angle 0.5 \
+0.25×/30000 steps a gain again (847→807s) — a published                     --Mapper.tri_ignore_two_view_tracks 0 \
+                                                                            --Mapper.num_threads 8
+rasterizer speedup is meaningless without the resolution and              colmap bundle_adjuster --input_path $IN --output_path $OUT \
+point-count it was measured at. Sparse Adam, which we had                   --BundleAdjustment.refine_focal_length 1 \
+                                                                            --BundleAdjustment.refine_extra_params 1 \
+to wire into nerficg ourselves, is worth 16–19% in the native               --BundleAdjustmentCeres.max_num_iterations 30
+driver but nothing inside nerficg, whose single fused Adam                colmap point_filtering --input_path $IN --output_path $OUT \
+                                                                            --max_reproj_error 4 --min_tri_angle 1.5
+over all parameter groups already beats the baseline sparse                 # note: no PointFiltering. option prefix
+Adam was designed to improve on. The dominant knobs are
+the backend algorithm and the driver: Faster-GS, which                    Appendix F Full results for all arms
+never links diff_gaussian_rasterization, is 1.3–2.1×                      Table 10 lists every arm of the clean matrix (protocol A/B,
+faster than the best classic arm at equal quality, and its                ablations and the perturbation arms) so that any difference
+margin survives the higher resolution. Recommended                        quoted in the text can be verified. The “3D initialization”
+configuration (identical on both platforms). nerficg driver               column is exactly where we and the official feed-forward BA
++ Faster-GS backend + fixed call convention: 147s (L20) and               disagree: theirs looks the network dense point map up at the
+196s (accelerator) for 0.25×/7, 000 steps, 159s and 272s at               query-frame pixel, ours triangulates external SIFT inliers
+0.5×. If the accel branch is enabled anywhere, the                        under frozen poses.
+split-convention patch is mandatory, not optional, and must
+be verified per platform — one platform crashes, the other
+silently returns a different model.
+
+Appendix E Reproduction notes and script
+inventory
+The code/ directory (identical to
+/root/cmp_test/wzong_eval/bin/ inside the container):
+run_matrix.sh (20-arm matrix, dedicated MODEL_NAME and
+GPU per arm), run_ba_arm.sh (route A in one shot: export →
+triangulate → BA → filter → BA → filter → graft → configs),
+run_tier.sh (quality tiers l/m/h: only resolution and iteration
+count change), run_undist_arm.sh (protocol B), run_one.sh
+(training + held-out evaluation), colmap_frames.py
+(frames.bin/cameras.bin reading and pose rewriting),
+mk_vggt_sparse2.py (network poses → COLMAP model),
+
+
+
+                                                                     21
+ Table 10 Complete held-out results for all 20 arms (one clean matrix re-run: 83 frames, training resolution scale 0.25, 7000 steps, TEST_STEP=8 giving 11
+ held-out views, RANDOM_SEED=0; dedicated MODEL_NAME and GPU per arm). Protocol A uses the raw distorted images; in protocol B every arm is undistorted
+with its own calibrated k1. Bold: our pipelines and the COLMAP references. The last three rows are the rotation-perturbation sensitivity arms (protocol B, not
+                                                                  pipeline comparisons).
+Arm                    Front-end configuration                           3D initialization                       PSNR       SSIM      LPIPS     Gaussians
+
+Protocol A (raw distorted images)
+
+cmap_raw               COLMAP full pipeline (reference)                  COLMAP SIFT+BA                          25.77      0.837     0.234     626616
+omega                  Ω raw forward (network point map)                 none (network point map)                21.35      0.674     0.326     697889
+omegatri               Ω + triangulation (frozen poses)                  SIFT triangulation                      23.01      0.741     0.290     651023
+omegatriba             Ω + triangulation + BA (ours)                     SIFT triangulation+BA                   25.79      0.843     0.219     634702
+omegatriba_vgpts       Ω + BA, initialized with network point map        SIFT triangulation+BA                   22.99      0.766     0.264     715366
+vggt                   VGGT raw forward (network point map)              none (network point map)                19.98      0.596     0.427     635674
+vggttri                VGGT + triangulation (frozen poses)               SIFT triangulation                      20.99      0.641     0.372     627185
+vggttriba              VGGT + triangulation + BA (ours)                  SIFT triangulation+BA                   25.10      0.811     0.253     —
+vggttrilong            VGGT + triangulation + BA, round-1 cap 300        SIFT triangulation+BA                   25.02      0.811     0.255     622666
+vggttriba_vgpts        VGGT + BA, initialized with network point map     SIFT triangulation+BA                   21.90      0.709     0.341     695987
+vggtgrid               Route B: self-generated tracks (no BA)            self-projection of network point map    19.99      0.600     0.407     621609
+vggtgridba             Route B: self-generated tracks + BA               self-projection of network point map    20.04      0.601     0.403     —
+
+Protocol B (self-calibrated k1, undistorted)
+
+cmap                   COLMAP full pipeline (undistorted, reference)     COLMAP SIFT+BA                          26.82      0.877     0.203     477211
+omegau                 Ω raw forward (undistorted)                       none (network point map)                21.74      0.706     0.308     665745
+omegatribau            Ω + triangulation + BA (undistorted, ours)        SIFT triangulation+BA                   26.72      0.875     0.198     —
+vggtu                  VGGT raw forward (undistorted)                    none (network point map)                19.30      0.588     0.425     573660
+vggttribau             VGGT + triangulation + BA (undistorted, ours)     SIFT triangulation+BA                   25.69      0.836     0.236     —
+cp06                   Perturbation: COLMAP poses rotated by 0.6°        COLMAP SIFT+BA                          20.29      0.584     0.399     543342
+cp13                   Perturbation: rotation 1.3°                       COLMAP SIFT+BA                          17.55      0.505     0.503     425435
+cp26                   Perturbation: rotation 2.6°                       COLMAP SIFT+BA                          16.34      0.482     0.561     340567
+
+
+
+
+                                                                             22
 
