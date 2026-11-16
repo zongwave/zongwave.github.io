@@ -98,12 +98,12 @@
   <div class="wrap nav">
     <a class="logo" href="#top">Pixel<b>Craft</b></a>
     <div class="navlinks">
-      <a href="#kb">知识库</a>
       <a href="#books">图书</a>
       <a href="#opensource">开源</a>
       <a href="#papers">技术文章</a>
       <a href="#embodied">具身教程</a>
       <a href="#demo">Demos</a>
+      <a href="#kb">知识库</a>
       <a href="#about">关于</a>
       <a href="https://github.com/zongwave/pixelcraft" target="_blank" rel="noopener">GitHub ↗</a>
       <a class="lang" href="/en/" style="margin-left:6px;padding:3px 10px;border:1px solid #222b42;border-radius:999px;color:#e6ebf5;font-size:.85rem">English</a>
@@ -126,61 +126,6 @@
   </div>
 </header>
 
-<section id="kb">
-  <div class="wrap">
-    <div class="sec-k">Knowledge Base</div>
-    <div class="sec-t">四大技术板块</div>
-    <p class="sec-d">PixelCraft 以“原理深度 + 工程落地”的方式组织内容，多数页面提供 <b>中文 | English</b> 双语切换。</p>
-
-    <div class="grid">
-      <div class="card">
-        <div class="ic">📷</div>
-        <h3>ISP 图像信号处理 <small>IMAGE SIGNAL PROCESSING</small></h3>
-        <p>相机成像链路：从传感器 Raw 到可视图像的核心算法与调优。</p>
-        <ul>
-          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/isp/3a">3A (AE / AWB / AF)</a><span class="n">isp/3a</span></li>
-          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/isp/nr">图像降噪 · 3DNR / Wavelet</a><span class="n">isp/nr</span></li>
-          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/isp/iq">图像质量调优 IQ Tuning</a><span class="n">isp/iq</span></li>
-        </ul>
-      </div>
-
-      <div class="card">
-        <div class="ic">👁️</div>
-        <h3>CV 计算机视觉 <small>COMPUTER VISION</small></h3>
-        <p>从几何与视频处理视角看视觉算法：稳定、拼接、重建。</p>
-        <ul>
-          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/cv">数字视频稳定 DVS (Gyro)</a><span class="n">cv</span></li>
-          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/cv">视频拼接 Stitching</a><span class="n">cv</span></li>
-          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/graphics">三维重建 · SfM / MVS</a><span class="n">graphics</span></li>
-        </ul>
-      </div>
-
-      <div class="card">
-        <div class="ic">🧊</div>
-        <h3>Graphics 计算机图形学 <small>GRAPHICS</small></h3>
-        <p>神经渲染与显式表示两大路线：NeRF 与 3D Gaussian Splatting。</p>
-        <ul>
-          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/graphics/3dgs">三维高斯泼溅 3DGS</a><span class="n">graphics/3dgs</span></li>
-          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/graphics/nerf">神经辐射场 NeRF / Neural Rendering</a><span class="n">graphics/nerf</span></li>
-          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/graphics">体渲染 · 位置编码 · 密度控制</a><span class="n">graphics</span></li>
-        </ul>
-      </div>
-
-      <div class="card">
-        <div class="ic">🤖</div>
-        <h3>AI 人工智能 <small>ARTIFICIAL INTELLIGENCE</small></h3>
-        <p>从 Transformer 组件到大模型推理、多模态与具身智能的实践总结。</p>
-        <ul>
-          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/ai/transformer">Transformer 组件</a><span class="n">ai/transformer</span></li>
-          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/ai/llm">大语言模型推理 LLM</a><span class="n">ai/llm</span></li>
-          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/ai/multimodal">多模态大模型</a><span class="n">ai/multimodal</span></li>
-          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/ai/lora">LoRA 微调</a><span class="n">ai/lora</span></li>
-          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/ai/embodied">具身智能 GR00T</a><span class="n">ai/embodied</span></li>
-        </ul>
-      </div>
-    </div>
-  </div>
-</section>
 
 <section id="books" style="background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
   <div class="wrap">
@@ -233,7 +178,7 @@
   </div>
 </section>
 
-<section id="papers"<section id="papers" style="background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+<section id="papers" style="background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
   <div class="wrap">
     <div class="sec-k">Tech Reports</div>
     <div class="sec-t">技术文章</div>
@@ -320,6 +265,61 @@
   </div>
 </section>
 
+<section id="kb">
+  <div class="wrap">
+    <div class="sec-k">Knowledge Base</div>
+    <div class="sec-t">四大技术板块</div>
+    <p class="sec-d">PixelCraft 以“原理深度 + 工程落地”的方式组织内容，多数页面提供 <b>中文 | English</b> 双语切换。</p>
+
+    <div class="grid">
+      <div class="card">
+        <div class="ic">📷</div>
+        <h3>ISP 图像信号处理 <small>IMAGE SIGNAL PROCESSING</small></h3>
+        <p>相机成像链路：从传感器 Raw 到可视图像的核心算法与调优。</p>
+        <ul>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/isp/3a">3A (AE / AWB / AF)</a><span class="n">isp/3a</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/isp/nr">图像降噪 · 3DNR / Wavelet</a><span class="n">isp/nr</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/isp/iq">图像质量调优 IQ Tuning</a><span class="n">isp/iq</span></li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="ic">👁️</div>
+        <h3>CV 计算机视觉 <small>COMPUTER VISION</small></h3>
+        <p>从几何与视频处理视角看视觉算法：稳定、拼接、重建。</p>
+        <ul>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/cv">数字视频稳定 DVS (Gyro)</a><span class="n">cv</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/cv">视频拼接 Stitching</a><span class="n">cv</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/graphics">三维重建 · SfM / MVS</a><span class="n">graphics</span></li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="ic">🧊</div>
+        <h3>Graphics 计算机图形学 <small>GRAPHICS</small></h3>
+        <p>神经渲染与显式表示两大路线：NeRF 与 3D Gaussian Splatting。</p>
+        <ul>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/graphics/3dgs">三维高斯泼溅 3DGS</a><span class="n">graphics/3dgs</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/graphics/nerf">神经辐射场 NeRF / Neural Rendering</a><span class="n">graphics/nerf</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/graphics">体渲染 · 位置编码 · 密度控制</a><span class="n">graphics</span></li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="ic">🤖</div>
+        <h3>AI 人工智能 <small>ARTIFICIAL INTELLIGENCE</small></h3>
+        <p>从 Transformer 组件到大模型推理、多模态与具身智能的实践总结。</p>
+        <ul>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/ai/transformer">Transformer 组件</a><span class="n">ai/transformer</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/ai/llm">大语言模型推理 LLM</a><span class="n">ai/llm</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/ai/multimodal">多模态大模型</a><span class="n">ai/multimodal</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/ai/lora">LoRA 微调</a><span class="n">ai/lora</span></li>
+          <li><a href="https://github.com/zongwave/pixelcraft/tree/main/ai/embodied">具身智能 GR00T</a><span class="n">ai/embodied</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
 <section id="about" style="background:var(--bg2);border-top:1px solid var(--line)">
   <div class="wrap">
     <div class="sec-k">About</div>
