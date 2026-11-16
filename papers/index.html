@@ -1,0 +1,3853 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="author" content="Wei Zong" />
+  <title>Bending Feed-forward Reconstruction into 3D Gaussian Splatting: One-shot Bundle Adjustment for VGGT / VGGT-&amp;Omega; Poses and Intrinsics</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    div.abstract {
+      margin: 2em 2em 2em 2em;
+      text-align: left;
+      font-size: 85%;
+    }
+    div.abstract-title {
+      font-weight: bold;
+      text-align: center;
+      padding: 0;
+      margin-bottom: 0.5em;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+  </style>
+  <style>
+  body{max-width:54rem;margin:2rem auto;padding:0 1.2rem;font-size:17px;line-height:1.65;color:#1d1d1f;background:#fff;font-family:Georgia,"Times New Roman",serif}
+  header#title-block-header{margin-bottom:1rem}
+  nav.paperlinks{font-family:Arial,Helvetica,sans-serif;background:#EFF3F8;border-left:4px solid #06408F;padding:.6rem .9rem;margin-bottom:1.2rem;font-size:15px}
+  nav.paperlinks a{color:#06408F;font-weight:bold;text-decoration:none;margin-right:1.2rem}
+  nav.paperlinks a:hover{text-decoration:underline}
+  div.toc{font-family:Arial,Helvetica,sans-serif;background:#f7f8fa;border:1px solid #C9CDD3;padding:.6rem 1rem;font-size:15px}
+  h1,h2,h3{font-family:Arial,Helvetica,sans-serif;color:#06408F}
+  figure{text-align:center;margin:1.4rem 0}
+  figure img{max-width:100%;height:auto}
+  figcaption{font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#555;text-align:left;margin-top:.4rem}
+  table{border-collapse:collapse;margin:1rem auto;font-family:Arial,Helvetica,sans-serif;font-size:14px}
+  td,th{border:1px solid #d5d9df;padding:3px 8px}
+  pre{background:#f5f6f8;padding:.8rem;overflow-x:auto}
+  </style>
+  <script defer=""
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js"
+  type="text/javascript"></script>
+</head>
+<body>
+<nav class="paperlinks"><a href="/papers/paper.pdf">Download PDF</a><a href="/papers/paper.txt">Plain text</a><a href="/">Home</a></nav>
+<header id="title-block-header">
+<h1 class="title">Bending Feed-forward Reconstruction into 3D Gaussian
+Splatting: One-shot Bundle Adjustment for VGGT / VGGT-&amp;Omega; Poses
+and Intrinsics</h1>
+<p class="author">Wei Zong</p>
+<div class="abstract">
+<div class="abstract-title">Abstract</div>
+<p>Feed-forward reconstruction networks (VGGT, VGGT-<span
+class="math inline">\(\Omega\)</span>) produce cameras, depth and dense
+point maps in a single forward pass, several times faster than
+feature-matching-based incremental structure-from-motion (COLMAP), and
+are therefore advertised as a drop-in replacement for the reconstruction
+front-end. When we plug both kinds of front-end into the <em>same</em>
+3D Gaussian splatting (3DGS) training pipeline under strictly controlled
+settings, the feed-forward results lose <span
+class="math inline">\(4.4\)</span>–<span
+class="math inline">\(7.5\,\text{dB}\)</span> on held-out views. We
+trace most of this gap to <strong>camera pose and intrinsics</strong>;
+the initial point cloud is a second, independent and smaller weakness
+rather than the origin of the measured loss: (i) network poses carry a
+coherent systematic bias, with a median rotation residual of <span
+class="math inline">\(1.29^\circ\)</span> (VGGT) and <span
+class="math inline">\(0.54^\circ\)</span> (VGGT-<span
+class="math inline">\(\Omega\)</span>) against a <span
+class="math inline">\(\approx0.04^\circ\)</span> agreement among COLMAP
+solutions; (ii) the networks never estimate lens distortion (<span
+class="math inline">\(k_1\equiv0\)</span>) and over-estimate the focal
+length by <span class="math inline">\(+2.6\%\)</span> on average, so the
+whole reprojection model is misspecified when training on the raw
+distorted images. We therefore propose, and validate on a domestic AI
+accelerator (Iluvatar BI-V150S, CoreX-5.0), a minimal refinement chain
+<strong>(route A)</strong>: reusing the SIFT observations that a
+production pipeline has already computed, we triangulate <em>under the
+frozen network poses</em> and run a single global bundle adjustment
+(with one round of point filtering in between), which repairs poses
+<em>and</em> intrinsics simultaneously; the network’s own dense point
+map never enters any residual. On an 83-frame sequence with 11 held-out
+views and a clean matrix of 20 identically configured arms, our chain
+lifts VGGT-<span class="math inline">\(\Omega\)</span> from <span
+class="math inline">\(21.35\,\text{dB}\)</span> to <span
+class="math inline">\(25.79\,\text{dB}\)</span> (protocol A) and from
+<span class="math inline">\(21.74\,\text{dB}\)</span> to <span
+class="math inline">\(26.72\,\text{dB}\)</span> (protocol B), matching
+the COLMAP reference at <span
+class="math inline">\(25.77\,\text{dB}\)</span>/<span
+class="math inline">\(26.82\,\text{dB}\)</span> (better LPIPS, <span
+class="math inline">\(0.198\)</span> vs <span
+class="math inline">\(0.203\)</span>); VGGT recovers <span
+class="math inline">\(+5.12\,\text{dB}\)</span> and retains a residual
+of <span class="math inline">\(-0.67\,\text{dB}\)</span> (protocol A) /
+<span class="math inline">\(-1.13\,\text{dB}\)</span> (protocol B).
+Rotation residuals drop to <span
+class="math inline">\(0.0701^\circ\)</span> (<span
+class="math inline">\(\Omega\)</span>) and <span
+class="math inline">\(0.3212^\circ\)</span> (VGGT), and a distortion
+coefficient is recovered through the joint optimization (<span
+class="math inline">\(k_1=-0.0133\)</span> vs. a reference of <span
+class="math inline">\(-0.0148\)</span>). We further report three
+counter-intuitive findings: plugging the network’s dense point map back
+into the 3DGS initialization <em>costs</em> <span
+class="math inline">\(2.8\)</span>–<span
+class="math inline">\(3.2\,\text{dB}\)</span>; BA driven by
+self-generated correspondences — <span
+class="math inline">\(1.91\times10^6\)</span> tracks built from the
+network’s own point map — reaches the lowest reprojection residual
+(<span class="math inline">\(0.256\,\text{px}\)</span>) yet makes the
+poses <em>worse</em> (<span
+class="math inline">\(1.29^\circ\!\to\!1.43^\circ\)</span>), so in our
+experiments the improvement produced by BA depends on correspondences
+that are <em>independent of the network</em>; and capping the first BA
+round at 30 iterations instead of 100 yields a bit-identical solution in
+<span class="math inline">\(57\text{s}\)</span> instead of <span
+class="math inline">\(142\text{s}\)</span>. The main table is a
+deliberately chosen floor setting (<span
+class="math inline">\(0.25\)</span> resolution <span
+class="math inline">\(/7\,000\)</span> steps); raising the 3DGS training
+tier to <span class="math inline">\(0.5/20\,000\)</span> and to
+native-resolution <span class="math inline">\(1.0/30\,000\)</span>
+leaves our chain within <span
+class="math inline">\(0.9\,\text{dB}\)</span> of COLMAP at every tier
+(<span class="math inline">\(\Omega\)</span>: <span
+class="math inline">\(+0.02\)</span>, <span
+class="math inline">\(-0.07\)</span>, <span
+class="math inline">\(-0.07\,\text{dB}\)</span>), whereas the raw
+forward pass stays <span class="math inline">\(4.5\)</span>–<span
+class="math inline">\(7.0\,\text{dB}\)</span> behind at every tier, so
+the conclusion is not a floor-setting artefact. Union-fusing the network
+dense points with the SIFT points as the 3DGS initialization is again
+worse than pure SIFT (<span class="math inline">\(-0.45\)</span> to
+<span class="math inline">\(-1.13\,\text{dB}\)</span>, <span
+class="math inline">\(+77\%\)</span> Gaussians). Every qualitative
+conclusion replicates on a second independent 191-frame video (BA arms
+within <span class="math inline">\(-0.26\)</span>/<span
+class="math inline">\(-0.58\,\text{dB}\)</span> of the same-scene
+reference, raw forward still <span
+class="math inline">\(2.3\)</span>/<span
+class="math inline">\(3.8\,\text{dB}\)</span> behind). Pricing the
+refinement stages separately, one global BA round is already sufficient
+for the <span class="math inline">\(\Omega\)</span> front-end (<span
+class="math inline">\(25.84\,\text{dB}\)</span>), whereas for the VGGT
+front-end — which has fewer independent correspondences — outlier
+filtering <em>alone is harmful</em> (<span
+class="math inline">\(-0.42\,\text{dB}\)</span>) and pays off only when
+paired with a following second BA round (net <span
+class="math inline">\(+0.29\,\text{dB}\)</span>). Two further clips on
+an NVIDIA L20 extend the replication to four scenes and to both
+front-end networks, where the same chain closes VGGT-1B’s <span
+class="math inline">\(-6.3\,\text{dB}\)</span> raw deficit on the
+control clip to <span class="math inline">\(-0.28\,\text{dB}\)</span>;
+on a hand-held <em>orbit</em> video the COLMAP reference collapses
+<em>silently</em> — <span class="math inline">\(42\)</span>
+singular-Cholesky failures inside <span
+class="math inline">\(30\)</span> global BA rounds, per-frame camera
+steps with <span class="math inline">\(\mathrm{cv}=4.12\)</span> against
+the <span class="math inline">\(\approx1/N\)</span> floor that uniform
+sampling imposes — while our chain registers every frame in <span
+class="math inline">\(178\text{s}\)</span> against <span
+class="math inline">\(692\text{s}\)</span>. Because held-out PSNR cannot
+arbitrate such a case, we score both candidates against SIFT two-view
+inlier pairs that neither reconstruction produced, and <span
+class="math inline">\(82.9\%\)</span> of that shared evidence sides with
+our chain, which is worth <span
+class="math inline">\(+2.71\,\text{dB}\)</span> downstream. The fourth
+clip is the control we report deliberately: <span
+class="math inline">\(0\)</span> solver failures, a quality tie (<span
+class="math inline">\(+0.09\,\text{dB}\)</span>) and no speed advantage.
+Finally we clarify the cost structure: COLMAP’s BA is not expensive per
+call but is invoked repeatedly by incremental mapping (measured: <span
+class="math inline">\(35\)</span> global plus <span
+class="math inline">\(\approx81\)</span> local calls, <span
+class="math inline">\(\approx97\text{s}\)</span> in total, <span
+class="math inline">\(53\%\)</span> of the mapper’s wall clock); we
+demote it to a single solve at the end of inference, whose cost is
+linear in the number of observations — and we report the net bill rather
+than a favourable comparison: on this sequence the refinement removes
+the front-end’s speed advantage (VGGT <span
+class="math inline">\(\approx144\text{s}\)</span> vs. COLMAP <span
+class="math inline">\(149\text{s}\)</span>; VGGT-<span
+class="math inline">\(\Omega\)</span> <span
+class="math inline">\(\approx211\text{s}\)</span>), so what the chain
+buys is a predictable post-processing cost and a complete camera
+trajectory when incremental registration splits, not raw speed.</p>
+</div>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#sec:intro" id="toc-sec:intro">Introduction</a></li>
+<li><a href="#sec:related" id="toc-sec:related">Related work</a>
+<ul>
+<li><a href="#classical-structure-from-motion-and-bundle-adjustment"
+id="toc-classical-structure-from-motion-and-bundle-adjustment">Classical
+structure-from-motion and bundle adjustment</a></li>
+<li><a href="#feed-forward-reconstruction"
+id="toc-feed-forward-reconstruction">Feed-forward
+reconstruction</a></li>
+<li><a href="#dgs-and-geometric-priors"
+id="toc-dgs-and-geometric-priors">3DGS and geometric priors</a></li>
+</ul></li>
+<li><a href="#sec:method" id="toc-sec:method">Method</a>
+<ul>
+<li><a href="#notation-and-problem-statement"
+id="toc-notation-and-problem-statement">Notation and problem
+statement</a></li>
+<li><a href="#sec:method-routeA" id="toc-sec:method-routeA">Route A:
+triangulation with frozen poses <span class="math inline">\(+\)</span>
+one global BA</a></li>
+<li><a href="#sec:routeB" id="toc-sec:routeB">Route B: BA with
+self-generated correspondences</a></li>
+<li><a href="#sec:method-cost" id="toc-sec:method-cost">Cost structure:
+one-shot BA versus repeated BA</a></li>
+</ul></li>
+<li><a href="#sec:setup" id="toc-sec:setup">Experimental setup</a>
+<ul>
+<li><a href="#platform-and-implementation"
+id="toc-platform-and-implementation">Platform and
+implementation</a></li>
+<li><a href="#data-held-out-protocol-and-training-configuration"
+id="toc-data-held-out-protocol-and-training-configuration">Data,
+held-out protocol and training configuration</a></li>
+<li><a href="#sec:setup-protocol" id="toc-sec:setup-protocol">Two
+evaluation protocols</a></li>
+<li><a href="#sec:setup-hygiene" id="toc-sec:setup-hygiene">Data
+hygiene: one clean matrix re-run</a></li>
+</ul></li>
+<li><a href="#sec:results" id="toc-sec:results">Results</a>
+<ul>
+<li><a href="#sec:res-main" id="toc-sec:res-main">Main results</a></li>
+<li><a href="#sec:res-pose" id="toc-sec:res-pose">Poses and intrinsics:
+the dominant source of the gap</a></li>
+<li><a href="#sec:res-ablate" id="toc-sec:res-ablate">Ablations: what
+helps and what hurts</a></li>
+<li><a href="#sec:res-stage" id="toc-sec:res-stage">BA-stage ablation:
+is one BA round already enough?</a></li>
+<li><a href="#sec:res-tier" id="toc-sec:res-tier">Training tiers: the
+main table is a floor setting</a></li>
+<li><a href="#sec:res-fuse" id="toc-sec:res-fuse">Fusion arms: can SIFT
+and network points be combined?</a></li>
+<li><a href="#sec:res-scene" id="toc-sec:res-scene">Cross-scene
+replication: does anything survive outside the first video?</a></li>
+<li><a href="#sec:collapse" id="toc-sec:collapse">Silent collapse:
+incremental mapping can fail without reporting failure</a></li>
+<li><a href="#sec:verdict" id="toc-sec:verdict">An image-based
+arbitration that uses neither reconstruction</a></li>
+<li><a href="#sec:res-perview" id="toc-sec:res-perview">Per-view
+behaviour and qualitative results</a></li>
+</ul></li>
+<li><a href="#sec:res-cost" id="toc-sec:res-cost">Runtime and cost</a>
+<ul>
+<li><a href="#where-ba-is-actually-expensive"
+id="toc-where-ba-is-actually-expensive">Where BA is actually
+expensive</a></li>
+<li><a href="#end-to-end-net-bill"
+id="toc-end-to-end-net-bill">End-to-end net bill</a></li>
+</ul></li>
+<li><a href="#sec:discussion" id="toc-sec:discussion">Discussion and
+limitations</a></li>
+<li><a href="#sec:conclusion"
+id="toc-sec:conclusion">Conclusion</a></li>
+<li><a href="#references" id="toc-references">References</a></li>
+<li><a href="#app:bin" id="toc-app:bin">COLMAP 4.0.4 binary format:
+three traps</a></li>
+<li><a href="#app:port" id="toc-app:port">Platform port to CoreX-5.0
+(summary)</a></li>
+<li><a href="#app:l20" id="toc-app:l20">Cross-platform check on NVIDIA
+L20 (summary)</a></li>
+<li><a href="#app:backend" id="toc-app:backend">Gaussian-rasterization
+backends: which optimizations pay (summary)</a></li>
+<li><a href="#app:scripts" id="toc-app:scripts">Reproduction notes and
+script inventory</a></li>
+<li><a href="#app:all" id="toc-app:all">Full results for all
+arms</a></li>
+</ul>
+</nav>
+<p><strong>Keywords:</strong> feed-forward 3D reconstruction; VGGT;
+VGGT-<span class="math inline">\(\Omega\)</span>; 3D Gaussian splatting;
+bundle adjustment; structure-from-motion; COLMAP; neural rendering</p>
+<h1 id="sec:intro">Introduction</h1>
+<p>The quality of 3D Gaussian splatting (3DGS)[1] is decided by two
+things: the coverage of the input images, and the <em>camera poses and
+intrinsics</em> that serve as the starting point of the optimization.
+The production standard for the former is COLMAP[2]: SIFT extraction[5]
+<span class="math inline">\(\rightarrow\)</span> pairwise matching with
+geometric verification <span class="math inline">\(\rightarrow\)</span>
+incremental registration <span
+class="math inline">\(\rightarrow\)</span> repeated bundle adjustment.
+The chain is robust but slow, and its failure modes on video sequences
+(registration splits, breakdown in weakly textured scenes, several
+sub-models that have to be merged by hand) are expensive in practice. So
+when feed-forward networks such as VGGT[6] and VGGT-<span
+class="math inline">\(\Omega\)</span>[7] appeared “one forward pass,
+sub-second, cameras plus depth plus point maps”, replacing the 3DGS
+front-end by a network became a natural engineering idea.</p>
+<p>On our production pipeline the idea is falsified. Row 1 versus rows 5
+and 6 of Table <a href="#tab:main" data-reference-type="ref"
+data-reference="tab:main">1</a> are the same video frames, the same
+training configuration and the same machine: the bare VGGT forward pass
+is <span class="math inline">\(5.79\,\text{dB}\)</span> below COLMAP and
+the bare VGGT-<span class="math inline">\(\Omega\)</span> forward pass
+<span class="math inline">\(4.42\,\text{dB}\)</span> below (protocol A);
+if everything is brought to COLMAP’s best configuration (each front-end
+undistorts with its own <span class="math inline">\(k_1\)</span>, §<a
+href="#sec:setup-protocol" data-reference-type="ref"
+data-reference="sec:setup-protocol">4.3</a>), the gaps become <span
+class="math inline">\(7.52\,\text{dB}\)</span> and <span
+class="math inline">\(5.08\,\text{dB}\)</span>.</p>
+<p>The decisive question is <strong>where the gap comes from</strong>.
+3DGS geometry has two inputs: poses and points. If the gap were mostly
+caused by the points (network points are denser, contain floaters, have
+inconsistent scale), improving the network point cloud would be the main
+line of work; if it comes from the poses, one has to introduce geometry
+that is external to the network. We separate the two with two
+experiments:</p>
+<ul>
+<li><p><strong>Points are not the main cause.</strong> Under <em>exactly
+the same</em> BA-refined poses, only swapping the 3DGS initialization
+from the triangulated SIFT cloud to the network dense point map drops
+PSNR from <span class="math inline">\(25.79\,\text{dB}\)</span> to <span
+class="math inline">\(22.99\,\text{dB}\)</span> (<span
+class="math inline">\(\Omega\)</span>) and from <span
+class="math inline">\(25.10\,\text{dB}\)</span> to <span
+class="math inline">\(21.90\,\text{dB}\)</span> (VGGT) — point-cloud
+quality does matter, but it is not the source of the measured gap; it is
+an <em>additional</em> weakness of the feed-forward front-end.
+Conversely COLMAP reaches <span
+class="math inline">\(25.77\,\text{dB}\)</span> with only <span
+class="math inline">\(32\,693\)</span> sparse points: 3DGS is tolerant
+of sparse initialization and intolerant of geometric
+inconsistency.</p></li>
+<li><p><strong>Poses are pinned down.</strong> Table <a href="#tab:pose"
+data-reference-type="ref" data-reference="tab:pose">2</a> shows median
+rotation residuals of <span class="math inline">\(1.29^\circ\)</span>
+(VGGT) and <span class="math inline">\(0.54^\circ\)</span> (<span
+class="math inline">\(\Omega\)</span>) against the COLMAP reference;
+when we instead perturb the COLMAP poses by <span
+class="math inline">\(0.6^\circ/1.3^\circ/2.6\circ\)</span>, held-out
+PSNR collapses from <span
+class="math inline">\(26.82\,\text{dB}\)</span> to <span
+class="math inline">\(20.29/17.55/16.34\,\text{dB}\)</span> (right panel
+of Fig. <a href="#fig:sens" data-reference-type="ref"
+data-reference="fig:sens">4</a>). The sensitivity curve shows how little
+pose error 3DGS tolerates, which is what makes pose the prime suspect;
+on its own it does not quantify the measured loss, because the injected
+perturbations are independent from frame to frame while network pose
+errors are spatially coherent, and the two have different structure (§<a
+href="#sec:discussion" data-reference-type="ref"
+data-reference="sec:discussion">7</a>).</p></li>
+</ul>
+<p>We therefore do not try to “fix the network point cloud”. We ask a
+more modest question: <strong>can a single classical optimization bring
+the poses and intrinsics of a feed-forward network to COLMAP
+level?</strong> The answer is yes, and the procedure is minimal: move
+the triangulation and bundle adjustment that COLMAP normally uses
+<em>inside</em> mapping to the end of inference, take the 2D
+observations from the SIFT matches that a production pipeline has
+already computed, and use the network poses as the initialization only.
+We implement the chain end-to-end on the Iluvatar BI-V150S platform and
+give a cost analysis.</p>
+<p><strong>Terminology.</strong> By <em>one-shot</em> refinement we mean
+a single post-processing stage that runs after feed-forward inference —
+in place of the triangulation and BA that COLMAP interleaves with
+incremental registration — and <em>not</em> a single invocation of the
+BA solver. The stage consists of triangulation, one global BA, one round
+of outlier filtering and, where that pays, a second BA round (§<a
+href="#sec:method" data-reference-type="ref"
+data-reference="sec:method">3</a>).</p>
+<p>Contributions:</p>
+<ol>
+<li><p><strong>Downstream quality evaluation (§<a href="#sec:setup"
+data-reference-type="ref" data-reference="sec:setup">4</a>, §<a
+href="#sec:res-main" data-reference-type="ref"
+data-reference="sec:res-main">5.1</a>, §<a href="#sec:res-scene"
+data-reference-type="ref"
+data-reference="sec:res-scene">5.7</a>)</strong>: under one fixed 3DGS
+training and evaluation setting we quantify how far the raw outputs of
+VGGT and VGGT-<span class="math inline">\(\Omega\)</span> sit behind a
+COLMAP baseline (<span class="math inline">\(4.4\)</span>–<span
+class="math inline">\(7.5\,\text{dB}\)</span> on held-out views), and we
+show that the ordering of the front-ends survives three further
+independent scenes and three training tiers, so the numbers are not an
+artefact of one clip or one compute budget. Where the reference is
+itself suspect we add an arbitration computed from two-view SIFT inliers
+that uses <em>neither</em> reconstruction (§<a href="#sec:verdict"
+data-reference-type="ref" data-reference="sec:verdict">5.9</a>), which
+is what lets us report a scene where COLMAP loses without resting the
+claim on PSNR.</p></li>
+<li><p><strong>Geometric refinement with independent correspondences
+(route A, §<a href="#sec:method" data-reference-type="ref"
+data-reference="sec:method">3</a>)</strong>: we triangulate under frozen
+network poses from the SIFT inliers a production pipeline has already
+computed, then run one global BA that frees pose, focal length and the
+distortion coefficients the network never outputs (<span
+class="math inline">\(k_1\equiv0\)</span>), with a filtering round and a
+second BA. This lifts VGGT-<span class="math inline">\(\Omega\)</span>
+to <span class="math inline">\(26.72\,\text{dB}\)</span> against a <span
+class="math inline">\(26.82\,\text{dB}\)</span> reference and leaves
+VGGT <span class="math inline">\(-1.13\,\text{dB}\)</span> behind. The
+control is part of the contribution (§<a href="#sec:routeB"
+data-reference-type="ref" data-reference="sec:routeB">3.3</a>): BA with
+self-generated correspondences attains the <em>lowest</em> reprojection
+residual (<span class="math inline">\(0.256\,\text{px}\)</span>) yet
+neither improves the poses nor improves held-out quality, which is why
+we attribute the observed improvement to the independent correspondences
+rather than to the optimisation per se.</p></li>
+<li><p><strong>Engineering and cost analysis (§<a href="#sec:res-cost"
+data-reference-type="ref" data-reference="sec:res-cost">6</a>,
+appendix <a href="#app:scripts" data-reference-type="ref"
+data-reference="app:scripts">13</a>)</strong>: the chain runs end-to-end
+on a non-NVIDIA accelerator (Iluvatar CoreX-5.0; port in appendix <a
+href="#app:port" data-reference-type="ref"
+data-reference="app:port">10</a>). We price COLMAP’s BA (<span
+class="math inline">\(97\text{s}\)</span> = <span
+class="math inline">\(53\%\)</span> of the mapper, <span
+class="math inline">\(35\)</span> global plus <span
+class="math inline">\(\approx81\)</span> local calls), our own rounds (a
+bit-identical solution already at <span
+class="math inline">\(30\)</span> iterations: <span
+class="math inline">\(57\text{s}\)</span> instead of <span
+class="math inline">\(142\text{s}\)</span>) and the linear dependence on
+the number of observations, and we report the net bill instead of a
+favourable comparison. Everything is reproducible: <span
+class="math inline">\(20\)</span> identically configured clean re-runs,
+per-view data and the scripts, plus a post-mortem on COLMAP 4.0.4’s
+rig/frame binary format (poses really live in <code>frames.bin</code>,
+not <code>images.bin</code>) that also documents a <em>spurious</em>
+“parity with COLMAP” result from an early version, which we
+withdraw.</p></li>
+</ol>
+<h1 id="sec:related">Related work</h1>
+<h2 id="classical-structure-from-motion-and-bundle-adjustment">Classical
+structure-from-motion and bundle adjustment</h2>
+<p>The incremental mapper of COLMAP[2] is built around “register one
+image, triangulate, local BA, periodic global BA and re-triangulation”;
+sparse solvers and scaling strategies for BA are described in Ceres[4]
+and in near-real-time SfM with BA in the loop[3]. The 2D correspondences
+come from SIFT[5] matching with essential/fundamental-matrix RANSAC
+verification. We lift the two components “triangulation” and “BA” out of
+the mapping loop, keep COLMAP’s solver and data formats, and delete the
+entire “incremental registration + repeated BA” loop.</p>
+<h2 id="feed-forward-reconstruction">Feed-forward reconstruction</h2>
+<p>VGGT[6] predicts cameras, depth, point maps and tracks in a single
+transformer forward pass with alternating attention; VGGT-<span
+class="math inline">\(\Omega\)</span>[7] scales this up with a single
+dense prediction head, register attention and a self-supervised
+protocol. DUSt3R[8] and related pairwise/multi-view point-map methods
+belong to the same family. We checked the VGGT-<span
+class="math inline">\(\Omega\)</span> paper and the official
+repositories: there is <strong>no bundle adjustment at inference
+time</strong>; “bundle adjustment” appears only in the
+<em>data-annotation</em> pipeline (§3.5.2), where the correspondences
+are provided by external algorithms (SIFT, SuperPoint+SuperGlue[9],
+ALIKED+LightGlue[10], VGGSfM Tracker[12]) and the network output is used
+only to initialize cases with too few RANSAC inliers. The official
+VGGT(v1) <code>demo_colmap.py</code> with <code>--use_ba</code> is
+likewise a three-stage “network 3D points <span
+class="math inline">\(+\)</span> external keypoints/tracks <span
+class="math inline">\(+\)</span> pycolmap solve”, and its comments
+explicitly allow <code>pred_tracks</code> to be replaced by
+COLMAP/LightGlue/LoFTR[11] tracks. Our work moves that annotation-side
+chain to the <em>inference</em> side and quantifies what it is worth
+downstream in 3DGS.</p>
+<h2 id="dgs-and-geometric-priors">3DGS and geometric priors</h2>
+<p>3DGS[1] rasterizes anisotropic Gaussians differentiably;
+Faster-GS[13] optimizes the optimization procedure of 3DGS at unchanged
+Gaussian count and quality, and its port to our platform (Iluvatar
+CoreX) is the training backend used here (porting notes in appendix <a
+href="#app:port" data-reference-type="ref"
+data-reference="app:port">10</a>). Earlier work agrees with our
+observation: the densification/pruning thresholds of 3DGS implicitly
+assume metric scale and accurate poses, and pose error is “stuck over”
+by densification, so that the training views look fitted while held-out
+views collapse — exactly the “highest training SSIM, lowest held-out
+PSNR” pattern we observe.</p>
+<h1 id="sec:method">Method</h1>
+<h2 id="notation-and-problem-statement">Notation and problem
+statement</h2>
+<p>Given <span class="math inline">\(N\)</span> images (here <span
+class="math inline">\(N=83\)</span>). A feed-forward network outputs
+per-frame cameras <span class="math inline">\(g_j=(R_j,t_j)\)</span>,
+intrinsics <span class="math inline">\(K_j\)</span> (focal length <span
+class="math inline">\(f_j\)</span>, principal point <span
+class="math inline">\(c_j\)</span>, distortion identically <span
+class="math inline">\(0\)</span>), a dense point map <span
+class="math inline">\(\{X_i\}\)</span> with confidence <span
+class="math inline">\(c_i\)</span>. A COLMAP-style pipeline instead
+outputs a sparse 3D point set together with 2D observations. Bundle
+adjustment solves <span class="math display">\[\begin{equation}
+
+\min_{\{K_j,R_j,t_j\},\,\{X_p\}}\ \sum_{p}\ \sum_{(j,u)\in
+\mathcal{T}_p}\
+\rho\!\left(\left\|\pi\!\left(K_j,R_j,t_j,X_p\right)-x_{j,u}\right\|^2\right),
+\end{equation}\]</span> where <span
+class="math inline">\(\mathcal{T}_p\)</span> is the <em>visibility
+track</em> of 3D point <span class="math inline">\(p\)</span>, <span
+class="math inline">\(x_{j,u}\)</span> is the <span
+class="math inline">\(u\)</span>-th 2D feature observation in frame
+<span class="math inline">\(j\)</span>, <span
+class="math inline">\(\pi\)</span> includes the distortion model and
+<span class="math inline">\(\rho\)</span> a robust kernel. The key
+structural fact of Eq. <a href="#eq:ba" data-reference-type="eqref"
+data-reference="eq:ba">[eq:ba]</a> is that <strong>only the observations
+inside <span class="math inline">\(\mathcal{T}_p\)</span> generate
+residuals</strong>. Hence <em>which source of correspondence is
+used</em> fully determines what new information the optimization can
+acquire.</p>
+<h2 id="sec:method-routeA">Route A: triangulation with frozen poses
+<span class="math inline">\(+\)</span> one global BA</h2>
+<p>Our chain has five steps (Fig. <a href="#fig:pipeline"
+data-reference-type="ref" data-reference="fig:pipeline">1</a>):</p>
+<ol>
+<li><p><strong>Export network poses.</strong> Write <span
+class="math inline">\(g_j,K_j\)</span> into a COLMAP sparse model. One
+must rewrite <code>frames.bin</code> as well: after the rig/frame
+refactor in COLMAP 4.0 the poses really live there and the <span
+class="math inline">\((q,t)\)</span> in <code>images.bin</code> are
+derived quantities (appendix <a href="#app:bin"
+data-reference-type="ref" data-reference="app:bin">9</a>).</p></li>
+<li><p><strong>Triangulation.</strong>
+<code>colmap point_triangulator</code>, with poses and intrinsics
+<em>frozen</em> (<code>--clear_points 1 --refine_intrinsics 0</code>),
+intersects the rays of the already available SIFT 2D matches (RANSAC
+inliers in the <code>two_view_geometries</code> table) and <em>generates
+on the spot</em> the 3D points and their tracks. Poses do not change
+(measured: the rotation residual before and after triangulation is
+bit-identical, <span
+class="math inline">\(1.2912^\circ\)</span>).</p></li>
+<li><p><strong>One global BA.</strong> <code>bundle_adjuster</code> with
+poses, focal length and distortion free
+(<code>refine_focal_length=1, refine_extra_params=1</code>), iteration
+cap <span class="math inline">\(30\)</span>.</p></li>
+<li><p><strong>Point filtering.</strong>
+<code>point_filtering --max_reproj_error 4 --min_tri_angle 1.5</code>.</p></li>
+<li><p><strong>BA again <span class="math inline">\(+\)</span> filter
+again.</strong> The second round reaches <code>CONVERGENCE</code> within
+<span class="math inline">\(50\)</span> iterations.</p></li>
+</ol>
+<figure id="fig:pipeline" data-latex-placement="t">
+<img src="figures_en/fig3_pipeline.png" />
+<figcaption>The three chains and their measured wall clocks (83 frames,
+one 16<span class="math inline">\(\times\)</span>BI-V150S node). Top:
+COLMAP keeps “exhaustive matching + incremental mapping + repeated BA”.
+Middle: the feed-forward network deletes correspondence and optimization
+— and with them the ability to estimate intrinsics and distortion.
+Bottom: ours borrows only two components from COLMAP, “triangulation +
+one BA” (numbers refer to the VGGT front-end).</figcaption>
+</figure>
+<h4
+id="the-real-difference-to-the-official-feed-forward-ba-where-x_p-comes-from">The
+real difference to the official feed-forward BA: where <span
+class="math inline">\(X_p\)</span> comes from</h4>
+<p>The official <code>--use_ba</code> of VGGT
+(<code>demo_colmap.py</code> <span class="math inline">\(+\)</span>
+<code>np_to_pycolmap.py</code>) is also a three-stage “external 2D
+tracks <span class="math inline">\(+\)</span> pycolmap solve”, but the
+3D initialization it feeds into Eq. <a href="#eq:ba"
+data-reference-type="eqref" data-reference="eq:ba">[eq:ba]</a> is
+obtained by <strong>looking up the dense point map per pixel</strong>:
+at the query-frame keypoint pixel <span
+class="math inline">\((u,v)\)</span> it takes
+<code>points_3d[img][v][u]</code> directly (the network output is a
+dense per-pixel point map, so every pixel can be read and no
+back-projection search is needed); the 2D observations in the remaining
+frames are filled in by an external tracker, and the association graph
+is registered with <code>Point2D(xy, point3D_id)</code> <span
+class="math inline">\(+\)</span> <code>Track</code>. The structural
+consequence is that the error of <span
+class="math inline">\(X_p\)</span> is <em>co-distributed</em> with the
+depth-head error, so the residual contains no geometric information
+independent of depth and BA cannot pull <span
+class="math inline">\(X_p\)</span> back to the correct place; its only
+quality gates are soft: a confidence threshold (<code>conf</code><span
+class="math inline">\(&gt;1.2\)</span>) and one projection pre-filter
+(<span class="math inline">\(8\,\text{px}\)</span>). We replace this
+step wholesale by <strong>triangulation</strong>: <span
+class="math inline">\(X_p\)</span> is generated by “frozen network poses
+<span class="math inline">\(+\)</span> ray intersection of external SIFT
+inliers”, the depth head never enters <span
+class="math inline">\(X_p\)</span>, and we inherit three hard gates from
+COLMAP (two-view RANSAC inliers, <code>tri_min_angle</code>, and
+<code>point_filtering</code> on reprojection error / triangulation
+angle). <em>In the official chain the network is the object being
+observed; in ours it is merely the arrangement of the rays, i.e. the
+initialization.</em> The substitution can be priced separately in
+Table <a href="#tab:main" data-reference-type="ref"
+data-reference="tab:main">1</a>: <code>omega</code><span
+class="math inline">\(\to\)</span><code>omegatri</code> changes only the
+source of <span class="math inline">\(X_p\)</span> (poses still frozen)
+and gains <span class="math inline">\(+1.66\,\text{dB}\)</span>;
+<code>vggt</code><span
+class="math inline">\(\to\)</span><code>vggttri</code> gains <span
+class="math inline">\(+1.01\,\text{dB}\)</span>. Freeing poses and
+intrinsics in BA then adds <span
+class="math inline">\(+2.78\,\text{dB}\)</span>/<span
+class="math inline">\(+4.11\,\text{dB}\)</span>. The converse evidence
+holds as well: grafting the network dense point map into the 3DGS
+initialization <em>costs</em> <span
+class="math inline">\(2.80\)</span>/<span
+class="math inline">\(3.20\,\text{dB}\)</span> (§<a
+href="#sec:res-ablate" data-reference-type="ref"
+data-reference="sec:res-ablate">5.3</a>).</p>
+<h4
+id="why-2d-observations-need-no-association-to-network-3d-points">Why 2D
+observations need no “association” to network 3D points</h4>
+<p>Eq. <a href="#eq:ba" data-reference-type="eqref"
+data-reference="eq:ba">[eq:ba]</a> needs an association between 3D
+points and 2D observations — and <strong>those 3D points do not have to
+be the network’s</strong>. Step (b) <em>regenerates</em> the 3D points
+inside the ray bundle opened by the network poses, so 3D points and 2D
+observations share frame and scale by construction and no registration
+is needed; the network here provides <em>the arrangement of the
+rays</em> (<span class="math inline">\(R_j,t_j,K_j\)</span>), i.e. the
+initialization, not the thing being measured. Conversely, attaching the
+network dense points to the SIFT observations (route C) requires mutual
+nearest-neighbour linking under <span
+class="math inline">\(\|{\pi(K_j,g_j,X_i)-k}\|&lt;r\)</span>; then the
+information ceiling is set by the number of SIFT matches (<span
+class="math inline">\(\approx3\,035\)</span> observations per frame
+here), essentially the same number route A gets for free, while the
+network’s own depth error (AbsRel <span
+class="math inline">\(0.01\)</span>–<span
+class="math inline">\(0.06\)</span>) is welded into the initialization
+of <span class="math inline">\(X_p\)</span> and an extra <span
+class="math inline">\(\approx25\%\)</span> BA scale drift has to be
+handled. We therefore did not adopt it.</p>
+<h4 id="where-the-network-dense-point-map-does-belong">Where the network
+dense point map does belong</h4>
+<p>After BA we transport the whole network point map into the BA world
+frame with the Sim3 obtained from the camera-center sets before/after
+BA, and write it into the model with <em>track length</em> <span
+class="math inline">\(0\)</span> (<code>track_len</code><span
+class="math inline">\(=0\)</span> <span
+class="math inline">\(\Rightarrow\)</span> zero residual <span
+class="math inline">\(\Rightarrow\)</span> it does not even get a column
+in the Jacobian), purely as a candidate for 3DGS initialization.
+Experiments (§<a href="#sec:res-ablate" data-reference-type="ref"
+data-reference="sec:res-ablate">5.3</a>) show this road <em>should not
+be taken</em>: it costs <span class="math inline">\(2.8\)</span>–<span
+class="math inline">\(3.2\,\text{dB}\)</span>.</p>
+<h2 id="sec:routeB">Route B: BA with self-generated correspondences</h2>
+<p>To test whether external correspondence is really necessary we build
+a control: take <span class="math inline">\(X_p\)</span> from the
+network point map, project each frame’s point map onto the other frames
+with relative-depth mutual checking (<span
+class="math inline">\(\le2\%\)</span>) and a confidence quantile
+threshold, and self-generate <span
+class="math inline">\(\sim\!1.91\times10^6\)</span> observations (<span
+class="math inline">\(202\,883\)</span> points, mean track length <span
+class="math inline">\(9.4\)</span>). These observations are
+<em>perfectly self-consistent</em> with the network poses; the initial
+cost is <span class="math inline">\(3.385\,\text{px}\)</span> (inflated
+by a bookkeeping frame error that BA digests itself) and drops to <span
+class="math inline">\(0.256\,\text{px}\)</span> after BA with
+<code>CONVERGENCE</code> — the lowest residual of all. And yet the
+median pose rotation residual grows from <span
+class="math inline">\(1.2912^\circ\)</span> to <span
+class="math inline">\(1.4296^\circ\)</span>, <span
+class="math inline">\(k_1\)</span> is estimated as <span
+class="math inline">\(+0.0010\)</span> while the COLMAP reference is
+<span class="math inline">\(-0.0148\)</span>, i.e. the sign is wrong,
+and held-out PSNR gains only <span
+class="math inline">\(0.05\,\text{dB}\)</span> (<span
+class="math inline">\(19.99\!\to\!20.04\)</span>, within the observed
+run-to-run variation).</p>
+<p>Mechanism: bundle adjustment is a mechanism that constrains 3D
+geometry with 2D observations, and all of its information comes from the
+part of the observations that is <em>independent</em> of the current 3D
+and pose estimate. When the observations are generated by projecting the
+poses and depths themselves, the objective is already near-optimal at
+the current solution and the gradient pushes towards “more
+self-consistent”, not “more correct”; self-consistency itself is
+insensitive to scale, orientation and even global distortion (gauge
+freedoms), so the optimization amplifies the systematic bias.
+Engineering conclusion: any “self-supervised network BA” must introduce
+independent correspondence (SIFT/LoFTR/optical flow/IMU/temporal
+priors).</p>
+<h2 id="sec:method-cost">Cost structure: one-shot BA versus repeated
+BA</h2>
+<p>Table <a href="#tab:cost" data-reference-type="ref"
+data-reference="tab:cost">7</a> and Fig. <a href="#fig:bacost"
+data-reference-type="ref" data-reference="fig:bacost">13</a> separate
+three different meanings of “BA is expensive”. (i) <em>COLMAP’s BA is
+expensive because it is called repeatedly</em>: the default mapper takes
+<span class="math inline">\(184\text{s}\)</span>; with the BA iteration
+cap set to <span class="math inline">\(0/1\)</span> and a looser
+function tolerance it takes <span
+class="math inline">\(87\text{s}\)</span>; the <span
+class="math inline">\(\approx97\text{s}\)</span> difference is BA’s true
+share inside the mapper (<span class="math inline">\(53\%\)</span>),
+accumulated from <span class="math inline">\(35\)</span> global and
+<span class="math inline">\(\approx81\)</span> local calls, <span
+class="math inline">\(1\text{s}\)</span> on average; over the same
+period the mean reprojection error falls from <span
+class="math inline">\(1.648\,\text{px}\)</span> to <span
+class="math inline">\(0.565\,\text{px}\)</span>, i.e. those <span
+class="math inline">\(97\text{s}\)</span> buy geometric accuracy itself.
+(ii) <em>Our single BA is slower than the whole BA-free mapper</em>
+(<span class="math inline">\(136\text{s}\)</span> vs <span
+class="math inline">\(87\text{s}\)</span>), because its first round
+already operates on all <span class="math inline">\(503\,770\)</span>
+residuals. (iii) But we call it twice, and the cost is linear in the
+number of observations (<span
+class="math inline">\(0.27/0.50/1.91\)</span> million <span
+class="math inline">\(\to\)</span> <span
+class="math inline">\(68/117/291\text{s}\)</span>), so growth is
+predictable and there is no un-budgetable “sub-models /
+failed-registration retries” term.</p>
+<h1 id="sec:setup">Experimental setup</h1>
+<h2 id="platform-and-implementation">Platform and implementation</h2>
+<p>All experiments run on a server with 16 Iluvatar BI-V150S cards
+(32 GB each, monitored with <code>ixsmi</code>) at
+<code>root@10.9.11.38</code>, software stack CoreX-5.0.0 (CUDA-10.2
+compatibility layer) <span class="math inline">\(+\)</span> PyTorch 2.10
+(CoreX build). SfM tool: self-compiled COLMAP 4.0.4 (commit 65e6439e,
+CUDA/ivcore11). 3DGS backend: Faster-GS[13] inside the nerficg framework
+(port: appendix <a href="#app:port" data-reference-type="ref"
+data-reference="app:port">10</a>). Front-ends: official VGGT-1B (bf16,
+518 crop) and VGGT-<span class="math inline">\(\Omega\)</span>-1B (fp32,
+512 balanced). LPIPS always uses VGG weights. The full pipeline is later
+reproduced verbatim on an NVIDIA L20 (CUDA) platform with identical
+configuration; appendix <a href="#app:l20" data-reference-type="ref"
+data-reference="app:l20">11</a> reports the cross-platform
+agreement.</p>
+<h2 id="data-held-out-protocol-and-training-configuration">Data,
+held-out protocol and training configuration</h2>
+<p>The data is the extracted frame sequence <code>c6183bb30c62</code> of
+one driving video: <span class="math inline">\(83\)</span> frames at
+<span class="math inline">\(1920\times1080\)</span>. Training resolution
+scale <span class="math inline">\(0.25\)</span> (<span
+class="math inline">\(480\times270\)</span>); every 8th frame by file
+name is held out (<code>TEST_STEP=8</code>), i.e. <span
+class="math inline">\(11\)</span> test and <span
+class="math inline">\(72\)</span> training frames; <span
+class="math inline">\(7\,000\)</span> training steps,
+<code>RANDOM_SEED=0</code>, remaining hyper-parameters at their
+defaults. All 20 arms share the same images, the same training
+configuration and the same seed: <strong>the only variable is where
+poses/intrinsics/initial points come from</strong>. Following the usual
+SfM/3DGS convention, the <em>front-end</em> of every arm — matching,
+network forward pass, triangulation and BA — sees all <span
+class="math inline">\(83\)</span> frames <em>including</em> the <span
+class="math inline">\(11\)</span> held-out ones (the reference model
+likewise contains <span class="math inline">\(83\)</span> images),
+whereas the Gaussians are trained only on the <span
+class="math inline">\(72\)</span> training frames and no arm is
+model-selected against the held-out views. This is therefore a property
+shared by all arms, not information one front-end receives and another
+does not. Note that <span class="math inline">\(0.25/7\,000\)</span> is
+a <em>floor</em> configuration we chose deliberately for the ablation
+matrix (quality just above the downstream visual bar, roughly ten
+minutes end to end); Section <a href="#sec:res-tier"
+data-reference-type="ref" data-reference="sec:res-tier">5.5</a>
+therefore re-runs the same front ends at medium and high training tiers
+to test whether our conclusions are artefacts of the floor setting.</p>
+<h2 id="sec:setup-protocol">Two evaluation protocols</h2>
+<p>The feed-forward networks output <span
+class="math inline">\(k_1\equiv0\)</span> whereas the COLMAP
+SIMPLE_RADIAL solution gives <span
+class="math inline">\(k_1=-0.0148\)</span>. If every arm were trained on
+COLMAP-undistorted images, the network arms would have pixels
+inconsistent with their own model (the image was already bent by
+somebody else’s <span class="math inline">\(k_1\)</span>); if every arm
+used raw distorted images, the network arms would lack the distortion
+term. To avoid favouring one protocol we <strong>report both</strong>:
+<strong>protocol A</strong> uses the raw distorted images everywhere
+(SIMPLE_RADIAL model, 1920<span
+class="math inline">\(\times\)</span>1080); <strong>protocol B</strong>
+undistorts each arm with <em>its own</em> calibrated <span
+class="math inline">\(k_1\)</span> via <code>image_undistorter</code>
+(network arms use the <span class="math inline">\(k_1\)</span> estimated
+by their BA), i.e. the setting of a real COLMAP production line. The
+headline conclusions hold in both protocols, and protocol B is the more
+production-comparable one.</p>
+<h2 id="sec:setup-hygiene">Data hygiene: one clean matrix re-run</h2>
+<p>Early results carried two attribution risks: (1) some arms shared an
+output directory (<code>MODEL_NAME</code> was not rewritten per arm);
+(2) the dataset directory was rebuilt mid-experiment, so identically
+named arms referred to different data. We therefore re-ran the entire
+matrix: per-arm <code>MODEL_NAME</code>, per-arm dedicated GPU, one
+concurrent wave, per-arm logs, with PSNR/SSIM/LPIPS, per-view PSNR,
+Gaussian counts and wall clocks written out. Every number in this paper
+comes from that single clean re-run; deviations from independent earlier
+results are within <span
+class="math inline">\(\pm0.3\,\text{dB}\)</span>, which is the
+run-to-run variation we observe at fixed seed.</p>
+<h1 id="sec:results">Results</h1>
+<h2 id="sec:res-main">Main results</h2>
+<p>Table <a href="#tab:main" data-reference-type="ref"
+data-reference="tab:main">1</a> and Fig. <a href="#fig:quality"
+data-reference-type="ref" data-reference="fig:quality">2</a> give all
+arms. Three observations.</p>
+<p><strong>(1) The feed-forward front-ends really lose a lot.</strong>
+In protocol A the bare VGGT forward pass reaches <span
+class="math inline">\(19.98\,\text{dB}\)</span> and bare VGGT-<span
+class="math inline">\(\Omega\)</span> <span
+class="math inline">\(21.35\,\text{dB}\)</span> against <span
+class="math inline">\(25.77\,\text{dB}\)</span> for the COLMAP
+reference; in protocol B they reach <span
+class="math inline">\(19.30/21.74\,\text{dB}\)</span> against <span
+class="math inline">\(26.82\,\text{dB}\)</span>. <span
+class="math inline">\(\Omega\)</span> is consistently better than VGGT
+(its pose residual is smaller to begin with: <span
+class="math inline">\(0.54^\circ\)</span> vs <span
+class="math inline">\(1.29^\circ\)</span>).</p>
+<p><strong>(2) One refinement stage closes the gap.</strong> Protocol A:
+<span class="math inline">\(\Omega\)</span> rises from <span
+class="math inline">\(21.35\,\text{dB}\)</span> to <span
+class="math inline">\(25.79\,\text{dB}\)</span> (<span
+class="math inline">\(+4.44\,\text{dB}\)</span>), <em>surpassing</em>
+the COLMAP reference by <span
+class="math inline">\(0.02\,\text{dB}\)</span>; VGGT rises from <span
+class="math inline">\(19.98\,\text{dB}\)</span> to <span
+class="math inline">\(25.10\,\text{dB}\)</span> (<span
+class="math inline">\(+5.12\,\text{dB}\)</span>), residual <span
+class="math inline">\(-0.67\,\text{dB}\)</span>. Protocol B: <span
+class="math inline">\(\Omega\)</span> <span
+class="math inline">\(21.74\!\to\!26.72\,\text{dB}\)</span> (<span
+class="math inline">\(+4.98\,\text{dB}\)</span>), <span
+class="math inline">\(0.10\,\text{dB}\)</span> behind COLMAP’s <span
+class="math inline">\(26.82\,\text{dB}\)</span> with better LPIPS (<span
+class="math inline">\(0.198\)</span> vs <span
+class="math inline">\(0.203\)</span>) and essentially equal SSIM (<span
+class="math inline">\(0.875\)</span> vs <span
+class="math inline">\(0.877\)</span>); VGGT <span
+class="math inline">\(19.30\!\to\!25.69\,\text{dB}\)</span>, residual
+<span class="math inline">\(-1.13\,\text{dB}\)</span>.</p>
+<p><strong>(3) The contributions of triangulation and BA are
+separable.</strong> Triangulation alone (frozen poses): <span
+class="math inline">\(+1.66\,\text{dB}\)</span> for <span
+class="math inline">\(\Omega\)</span>, <span
+class="math inline">\(+1.01\,\text{dB}\)</span> for VGGT — this part
+comes from replacing the network dense cloud with the true SIFT cloud;
+the net contribution of BA is <span
+class="math inline">\(+2.78\,\text{dB}\)</span>/<span
+class="math inline">\(+4.11\,\text{dB}\)</span>. Repairing
+pose/intrinsics is thus the dominant gain.</p>
+<div id="tab:main">
+<table>
+<caption>Held-out quality under Protocol A (raw distorted images). 83
+frames, <span class="math inline">\(0.25\)</span> training resolution,
+7 000 steps, 11 held-out views, <code>seed</code>=0; all 20 arms come
+from a single clean matrix re-run.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Arm</th>
+<th style="text-align: center;">Front-end configuration</th>
+<th style="text-align: center;">PSNR <span
+class="math inline">\(\uparrow\)</span></th>
+<th style="text-align: center;">SSIM <span
+class="math inline">\(\uparrow\)</span></th>
+<th style="text-align: center;">LPIPS <span
+class="math inline">\(\downarrow\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>cmap_raw</strong></td>
+<td style="text-align: center;">COLMAP full pipeline</td>
+<td style="text-align: center;">25.77</td>
+<td style="text-align: center;">0.837</td>
+<td style="text-align: center;">0.234</td>
+</tr>
+<tr>
+<td style="text-align: left;">omega</td>
+<td style="text-align: center;"><span
+class="math inline">\(\Omega\)</span> raw forward (network point
+cloud)</td>
+<td style="text-align: center;">21.35</td>
+<td style="text-align: center;">0.674</td>
+<td style="text-align: center;">0.326</td>
+</tr>
+<tr>
+<td style="text-align: left;">omegatri</td>
+<td style="text-align: center;"><span
+class="math inline">\(\Omega\)</span> + triangulation</td>
+<td style="text-align: center;">23.01</td>
+<td style="text-align: center;">0.741</td>
+<td style="text-align: center;">0.290</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>omegatriba</strong></td>
+<td style="text-align: center;"><strong><span
+class="math inline">\(\Omega\)</span> + triangulation + BA
+(ours)</strong></td>
+<td style="text-align: center;"><strong>25.79</strong></td>
+<td style="text-align: center;"><strong>0.843</strong></td>
+<td style="text-align: center;"><strong>0.219</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">omegatriba_vgpts</td>
+<td style="text-align: center;"><span
+class="math inline">\(\Omega\)</span> + BA, but network dense points as
+init</td>
+<td style="text-align: center;">22.99</td>
+<td style="text-align: center;">0.766</td>
+<td style="text-align: center;">0.264</td>
+</tr>
+<tr>
+<td style="text-align: left;">vggt</td>
+<td style="text-align: center;">VGGT raw forward (network point
+cloud)</td>
+<td style="text-align: center;">19.98</td>
+<td style="text-align: center;">0.596</td>
+<td style="text-align: center;">0.427</td>
+</tr>
+<tr>
+<td style="text-align: left;">vggttri</td>
+<td style="text-align: center;">VGGT + triangulation</td>
+<td style="text-align: center;">20.99</td>
+<td style="text-align: center;">0.641</td>
+<td style="text-align: center;">0.372</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>vggttriba</strong></td>
+<td style="text-align: center;"><strong>VGGT + triangulation + BA
+(ours)</strong></td>
+<td style="text-align: center;"><strong>25.10</strong></td>
+<td style="text-align: center;"><strong>0.811</strong></td>
+<td style="text-align: center;"><strong>0.253</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">vggttriba_vgpts</td>
+<td style="text-align: center;">VGGT + BA, but network dense points as
+init</td>
+<td style="text-align: center;">21.90</td>
+<td style="text-align: center;">0.709</td>
+<td style="text-align: center;">0.341</td>
+</tr>
+<tr>
+<td style="text-align: left;">vggtgrid</td>
+<td style="text-align: center;">Route B: self-generated tracks (no
+BA)</td>
+<td style="text-align: center;">19.99</td>
+<td style="text-align: center;">0.600</td>
+<td style="text-align: center;">0.407</td>
+</tr>
+<tr>
+<td style="text-align: left;">vggtgridba</td>
+<td style="text-align: center;">Route B: self-generated tracks + BA</td>
+<td style="text-align: center;">20.04</td>
+<td style="text-align: center;">0.601</td>
+<td style="text-align: center;">0.403</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><span>Bold: our pipeline and the COLMAP reference. BA recovers <span
+class="math inline">\(+4.44\)</span> dB for <span
+class="math inline">\(\Omega\)</span> and <span
+class="math inline">\(+5.12\)</span> dB for VGGT; grafting the network
+dense cloud back into the 3DGS initialization instead costs <span
+class="math inline">\(2.80\)</span>/<span
+class="math inline">\(3.20\)</span> dB.</span></p>
+<figure id="fig:quality" data-latex-placement="t">
+<img src="figures_en/fig1_quality_A.png" />
+<figcaption>Held-out PSNR of all protocol-A arms (the two numbers above
+each bar are SSIM and LPIPS). Green: our route A; orange: feed-forward
+front-ends; gray: route B (self-generated tracks).</figcaption>
+</figure>
+<h2 id="sec:res-pose">Poses and intrinsics: the dominant source of the
+gap</h2>
+<p>Table <a href="#tab:pose" data-reference-type="ref"
+data-reference="tab:pose">2</a> uses the COLMAP model as reference
+(residuals after an Umeyama similarity absorbs scale and rigid degrees
+of freedom; trajectory diagonal <span
+class="math inline">\(10.782\text{m}\)</span>). Before BA the median
+rotation residual is <span class="math inline">\(0.5404^\circ\)</span>
+for <span class="math inline">\(\Omega\)</span> and <span
+class="math inline">\(1.2912^\circ\)</span> for VGGT, whereas two COLMAP
+solutions of the same data differ by only <span
+class="math inline">\(\approx0.04^\circ\)</span>. That figure is an
+<em>inter-solution agreement</em>: it says the reference is repeatable
+under our settings, not that it lies within <span
+class="math inline">\(0.04^\circ\)</span> of the real cameras. We have
+no independent pose ground truth, so every residual quoted in this paper
+is taken <em>relative to the COLMAP reference solution</em>. After BA:
+<span class="math inline">\(\Omega\)</span> reaches <span
+class="math inline">\(0.0701^\circ\)</span> (<span
+class="math inline">\(7.7\times\)</span> better, close to that
+inter-solution agreement), VGGT <span
+class="math inline">\(0.3212^\circ\)</span> (<span
+class="math inline">\(4.0\times\)</span>); camera-center residuals
+(relative to the trajectory diagonal) <span
+class="math inline">\(0.395\%\!\to\!0.096\%\)</span> and <span
+class="math inline">\(0.579\%\!\to\!0.291\%\)</span>; mean reprojection
+<span
+class="math inline">\(1.443\,\text{px}\!\to\!0.386\,\text{px}\)</span>
+and <span
+class="math inline">\(1.629\,\text{px}\!\to\!0.372\,\text{px}\)</span>
+(COLMAP reference <span class="math inline">\(0.565\,\text{px}\)</span>:
+in the reprojection sense our solution is even better, because the
+reference retains distant outliers).</p>
+<p><strong>The intrinsics are repaired on the way, which is the other
+half of the PSNR gain.</strong> Focal length: <span
+class="math inline">\(\Omega\)</span> <span
+class="math inline">\(872.09\!\to\!852.55\)</span> and VGGT <span
+class="math inline">\(872.34\!\to\!856.04\)</span> against a reference
+of <span class="math inline">\(850.73\)</span> (the networks were <span
+class="math inline">\(+2.5\%\)</span> too long); distortion <span
+class="math inline">\(k_1\)</span>: <span
+class="math inline">\(0\!\to\!-0.0133\)</span> / <span
+class="math inline">\(0\!\to\!-0.0127\)</span> against a reference of
+<span class="math inline">\(-0.0148\)</span>. This is why “just train on
+undistorted images” cannot save the bare network arms
+(<code>vggtu</code>/<code>omegau</code> in Table <a href="#tab:main"
+data-reference-type="ref" data-reference="tab:main">1</a> are even
+lower): the network does not know that distortion exists, undistortion
+can only be performed with somebody else’s <span
+class="math inline">\(k_1\)</span>, and that <span
+class="math inline">\(k_1\)</span> is inconsistent with the network
+poses. Only BA produces a <em>self-consistent</em> <span
+class="math inline">\((f,k_1)\)</span> pair.</p>
+<p><strong>Pose-sensitivity experiment.</strong> To quantify “dB per
+degree” we inject artificial rotational perturbation into the COLMAP
+solution and retrain (protocol B): <span
+class="math inline">\(0^\circ\)</span> <span
+class="math inline">\(26.82\,\text{dB}\)</span>, <span
+class="math inline">\(0.6^\circ\)</span> <span
+class="math inline">\(20.29\,\text{dB}\)</span>, <span
+class="math inline">\(1.3^\circ\)</span> <span
+class="math inline">\(17.55\,\text{dB}\)</span>, <span
+class="math inline">\(2.6^\circ\)</span> <span
+class="math inline">\(16.34\,\text{dB}\)</span> (Fig. <a
+href="#fig:sens" data-reference-type="ref"
+data-reference="fig:sens">4</a>, right). The slope for small
+perturbations is <span
+class="math inline">\(\approx-10.9\,\text{dB}/^\circ\)</span>.
+Projecting each arm’s measured rotation residual onto this curve
+predicts its loss: <span class="math inline">\(\Omega\)</span> (<span
+class="math inline">\(0.54^\circ\)</span>) predicts <span
+class="math inline">\(\approx-5.9\,\text{dB}\)</span>, measured <span
+class="math inline">\(-5.47\,\text{dB}\)</span> (protocol B, <span
+class="math inline">\(21.74\)</span> vs <span
+class="math inline">\(26.82\)</span>); VGGT (<span
+class="math inline">\(1.29^\circ\)</span>) predicts <span
+class="math inline">\(\approx-13\,\text{dB}\)</span>, measured <span
+class="math inline">\(-7.52\,\text{dB}\)</span> — VGGT does better than
+predicted, because network error is <em>coherent</em> (a global
+rotation/scale bias), partly absorbable by 3DGS densification, whereas
+our perturbation is per-frame independent and therefore more toxic. This
+also explains why <em>one</em> global BA suffices: coherent error is
+exactly what a low-dimensional parameterization removes best.</p>
+<p><strong>Geometry side by side.</strong> Figure <a href="#fig:pcd"
+data-reference-type="ref" data-reference="fig:pcd">3</a> places four
+geometries in one view: the network’s dense point map (<span
+class="math inline">\(\approx\)</span>21.87M points per network, thinned
+to 80k in the figure; low-confidence points faded) requires no
+correspondence search by construction, yet VGGT’s cross-view 3-D point
+tracks break up far more often than <span
+class="math inline">\(\Omega\)</span>’s, consistent with its <span
+class="math inline">\(1.29^\circ\)</span> rotation residual. On the
+sparse side, our <span class="math inline">\(51.4\)</span>k points and
+COLMAP’s <span class="math inline">\(32.7\)</span>k points hug the
+camera path equally well, and the visual gap between them is far smaller
+than that between the two dense clouds—mirroring the <span
+class="math inline">\(+0.02\,\text{dB}\)</span> of Table <a
+href="#tab:main" data-reference-type="ref"
+data-reference="tab:main">1</a>. Quality comes from the consistency of
+poses and observations, not from point density, in line with the graft
+verdict (<span class="math inline">\(-2.8\)</span> to <span
+class="math inline">\(-3.2\,\text{dB}\)</span>, Table <a
+href="#tab:main" data-reference-type="ref"
+data-reference="tab:main">1</a>).</p>
+<figure id="fig:pcd" data-latex-placement="t">
+<img src="figures_en/fig11_clouds_tracks.png" />
+<figcaption>Geometry and imagery side by side (83-frame main scene).
+Top: the first two panels are network dense point maps (80k thinned
+points; solid where conf <span class="math inline">\(&gt;\)</span>1.2,
+faded otherwise; blue = 3-D point tracks of 16 grid anchors on frame 0,
+sampled from the dense maps view by view, low-confidence anchors
+dropped). The last two panels are the COLMAP reference and our (<span
+class="math inline">\(\Omega\)</span> + triangulation + one-shot BA)
+sparse clouds with rays of the 20 longest tracks (grey) and their 3-D
+endpoints (orange). Coloured polylines: camera paths (green triangle =
+frame 0, red = frame 82); each panel in its own frame, so only shapes
+are comparable. Bottom: renders of held-out view 0 with overall held-out
+PSNR (protocol A).</figcaption>
+</figure>
+<div id="tab:pose">
+<table>
+<caption>Pose/intrinsics residuals (reference <span
+class="math inline">\(=\)</span> COLMAP model; residuals after Umeyama
+absorbs scale and rigid degrees of freedom; trajectory diagonal
+10.782 m).</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Model</th>
+<th style="text-align: center;">Stage</th>
+<th style="text-align: center;">center residual <span
+class="math inline">\(\%\)</span></th>
+<th style="text-align: center;">rotation p50 (<span
+class="math inline">\(^\circ\)</span>)</th>
+<th style="text-align: center;">rotation p95 (<span
+class="math inline">\(^\circ\)</span>)</th>
+<th style="text-align: center;">reproj. (px)</th>
+<th style="text-align: center;"><span
+class="math inline">\(f\)</span></th>
+<th style="text-align: center;"><span
+class="math inline">\(k_1\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">vggt</td>
+<td style="text-align: center;">raw network output</td>
+<td style="text-align: center;">0.579</td>
+<td style="text-align: center;">1.2912</td>
+<td style="text-align: center;">2.464</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">872.34</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr>
+<td style="text-align: left;">vggttri</td>
+<td style="text-align: center;">+ triangulation (frozen poses)</td>
+<td style="text-align: center;">0.579</td>
+<td style="text-align: center;">1.2912</td>
+<td style="text-align: center;">2.464</td>
+<td style="text-align: center;">1.629</td>
+<td style="text-align: center;">872.34</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>vggttriba</strong></td>
+<td style="text-align: center;">+ one global BA</td>
+<td style="text-align: center;">0.291</td>
+<td style="text-align: center;">0.3212</td>
+<td style="text-align: center;">0.665</td>
+<td style="text-align: center;">0.372</td>
+<td style="text-align: center;">856.04</td>
+<td style="text-align: center;"><span
+class="math inline">\(-\)</span>0.0127</td>
+</tr>
+<tr>
+<td style="text-align: left;">omega</td>
+<td style="text-align: center;">raw network output</td>
+<td style="text-align: center;">0.395</td>
+<td style="text-align: center;">0.5404</td>
+<td style="text-align: center;">1.573</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">872.09</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr>
+<td style="text-align: left;">omegatri</td>
+<td style="text-align: center;">+ triangulation (frozen poses)</td>
+<td style="text-align: center;">0.395</td>
+<td style="text-align: center;">0.5404</td>
+<td style="text-align: center;">1.573</td>
+<td style="text-align: center;">1.443</td>
+<td style="text-align: center;">872.09</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>omegatriba</strong></td>
+<td style="text-align: center;">+ one global BA</td>
+<td style="text-align: center;">0.096</td>
+<td style="text-align: center;">0.0701</td>
+<td style="text-align: center;">0.199</td>
+<td style="text-align: center;">0.386</td>
+<td style="text-align: center;">852.55</td>
+<td style="text-align: center;"><span
+class="math inline">\(-\)</span>0.0133</td>
+</tr>
+<tr>
+<td style="text-align: left;">cmap_raw</td>
+<td style="text-align: center;">COLMAP reference (noise floor)</td>
+<td style="text-align: center;">0.040</td>
+<td style="text-align: center;">0.040</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">0.565</td>
+<td style="text-align: center;">850.73</td>
+<td style="text-align: center;"><span
+class="math inline">\(-\)</span>0.0148</td>
+</tr>
+<tr>
+<td style="text-align: left;">vggtgridba</td>
+<td style="text-align: center;">Route B (self-track BA)</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">1.4296 (worse)</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">0.256</td>
+<td style="text-align: center;">865.63</td>
+<td style="text-align: center;"><span
+class="math inline">\(+\)</span>0.0010</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><span>The <span class="math inline">\(k_1\)</span> column shows that
+the network never estimates distortion (<span
+class="math inline">\(k_1\equiv 0\)</span>); only BA recovers it: ground
+truth <span class="math inline">\(-\)</span>0.0148, BA yields <span
+class="math inline">\(-\)</span>0.0127/<span
+class="math inline">\(-\)</span>0.0133.</span></p>
+<figure id="fig:sens" data-latex-placement="t">
+<img src="figures_en/fig2_quality_B_sensitivity.png" />
+<figcaption>Left: held-out quality in protocol B (each arm undistorted
+with its own <span class="math inline">\(k_1\)</span>); our <span
+class="math inline">\(\Omega\)</span> chain is <span
+class="math inline">\(0.10\,\text{dB}\)</span> from the full COLMAP
+pipeline. Middle: sensitivity curve for artificial rotation perturbation
+of COLMAP poses (dots) together with each arm’s measured rotation
+residual and quality (vertical lines); the two axes corroborate each
+other at the same order of magnitude. The right panel lists our residual
+against the reference under every measurement protocol (protocol A at
+the low/mid/high training tiers, protocol B, and the second scene
+redcar): <span class="math inline">\(+0.02\)</span> to <span
+class="math inline">\(-0.26\,\text{dB}\)</span> for <span
+class="math inline">\(\Omega\)</span> and <span
+class="math inline">\(-0.58\)</span> to <span
+class="math inline">\(-1.13\,\text{dB}\)</span> for VGGT—the <span
+class="math inline">\(-0.67\,\text{dB}\)</span> of protocol A and the
+<span class="math inline">\(-1.13\,\text{dB}\)</span> of protocol B are
+readings of the same residual under different protocols, not an extra
+defect of any single stage.</figcaption>
+</figure>
+<h2 id="sec:res-ablate">Ablations: what helps and what hurts</h2>
+<p><strong>Bringing the network dense cloud back hurts.</strong> With
+identical BA poses/intrinsics, changing only the 3DGS initialization
+from the triangulated SIFT cloud to the network dense point map
+(<code>omegatriba_vgpts</code>, <code>vggttriba_vgpts</code>) drops PSNR
+from <span class="math inline">\(25.79\)</span> to <span
+class="math inline">\(22.99\,\text{dB}\)</span> (<span
+class="math inline">\(-2.80\)</span>) and from <span
+class="math inline">\(25.10\)</span> to <span
+class="math inline">\(21.90\,\text{dB}\)</span> (<span
+class="math inline">\(-3.20\)</span>). The <em>poses</em> of these two
+arms are identical to the best arms — the effect is purely the point
+cloud. This matches our 60-frame controlled observation that “<span
+class="math inline">\(\Omega\)</span> has the highest training SSIM but
+the lowest held-out PSNR”: dense network points buy overfitting
+capacity, not generalization.</p>
+<p><strong>Self-generated correspondences do not help.</strong> Route B
+(<code>vggtgrid</code>/<code>vggtgridba</code>): <span
+class="math inline">\(19.99\!\to\!20.04\,\text{dB}\)</span> while the
+pose residual <em>worsens</em> from <span
+class="math inline">\(1.2912^\circ\)</span> to <span
+class="math inline">\(1.4296^\circ\)</span>, despite the lowest cost of
+all (<span class="math inline">\(0.256\,\text{px}\)</span>; Fig. <a
+href="#fig:tracks" data-reference-type="ref"
+data-reference="fig:tracks">5</a>, right).</p>
+<p><strong>More BA iterations buy nothing.</strong> Raising the round-1
+cap from <span class="math inline">\(100\)</span> to <span
+class="math inline">\(300\)</span> (<code>vggttrilong</code>) gives a
+final cost of <span class="math inline">\(0.379011\,\text{px}\)</span>
+bit-identical to 100 iterations, the same <span
+class="math inline">\(0.3212^\circ\)</span> pose residual, and PSNR
+<span class="math inline">\(25.02\)</span> vs <span
+class="math inline">\(25.10\,\text{dB}\)</span>, within the run-to-run
+variation. Conversely lowering the cap to <span
+class="math inline">\(30\)</span> gives a solution
+<em>bit-identical</em> to 100 iterations (rotation difference <span
+class="math inline">\(\le6\times10^{-6\circ}\)</span>, camera-center
+difference <span class="math inline">\(\le5.8\times10^{-7}\)</span>,
+<span class="math inline">\(f\)</span>/<span
+class="math inline">\(k_1\)</span> identical) while saving <span
+class="math inline">\(85\text{s}\)</span>. The residual <span
+class="math inline">\(-0.67\,\text{dB}\)</span> (VGGT, protocol A) is an
+<em>information</em> limit, not an iteration limit: going further
+requires more independent correspondence (dense matchers, temporal/IMU
+priors).</p>
+<p><strong>Quantifying the information limit.</strong> The VGGT
+front-end feeds BA only <span class="math inline">\(93\,205\)</span>
+<em>independent</em> observations (<span
+class="math inline">\(\Omega\)</span>: <span
+class="math inline">\(165\,147\)</span>; COLMAP reference: <span
+class="math inline">\(192\,880\)</span>), i.e. <span
+class="math inline">\(2.8\)</span> observations per 3D point against
+<span class="math inline">\(5.9\)</span> for the reference, and its
+triangulated cloud has median track length <span
+class="math inline">\(2\)</span> versus <span
+class="math inline">\(4\)</span> (Fig. <a href="#fig:tracks"
+data-reference-type="ref" data-reference="fig:tracks">5</a>, left): half
+as much independent information is available to constrain the poses.
+Taking the slope of the perturbation curve near the origin, <span
+class="math inline">\(-10.9\,\text{dB}/^\circ\)</span> (Fig. <a
+href="#fig:sens" data-reference-type="ref"
+data-reference="fig:sens">4</a>, right), as a local ruler, the
+difference between the post-BA rotation residuals of the two front-ends
+(<span class="math inline">\(0.3212^\circ\)</span> vs <span
+class="math inline">\(0.0701^\circ\)</span>) predicts an <em>upper</em>
+bound of <span class="math inline">\(2.7\,\text{dB}\)</span>, whereas
+the measured difference is only <span
+class="math inline">\(0.69\,\text{dB}\)</span> (<span
+class="math inline">\(-0.67\)</span> vs <span
+class="math inline">\(+0.02\)</span>) — most of the residual pose error
+is already absorbed by 3DGS densification and rasterisation. Recovering
+the remaining <span class="math inline">\(\sim\!0.6\,\text{dB}\)</span>
+therefore requires pushing the rotation residual towards <span
+class="math inline">\(\sim\!0.1^\circ\)</span>, i.e. raising the
+observations-per-point to the reference level (dense trackers/matchers
+such as LoFTR[11], or temporal/IMU priors), not more BA iterations.</p>
+<figure id="fig:tracks" data-latex-placement="t">
+<img src="figures_en/fig6_tracks_and_routes.png" />
+<figcaption>Left: track-length distribution of the triangulated point
+clouds (log scale). Our triangulated cloud has median track length <span
+class="math inline">\(2\)</span> and mean <span
+class="math inline">\(3.39\)</span>, “thinner” than COLMAP’s incremental
+mapping (median <span class="math inline">\(4\)</span>, mean <span
+class="math inline">\(5.90\)</span>) — which keeps BA affordable but
+also contributes to the residual gap. Right: mean reprojection error
+(log) against pose rotation residual p50 (log), the dashed arrow
+pointing towards more accurate — the lowest-residual variant (route B)
+has the worst poses, so “more self-consistent” <span
+class="math inline">\(\neq\)</span> “more correct”.</figcaption>
+</figure>
+<h2 id="sec:res-stage">BA-stage ablation: is one BA round already
+enough?</h2>
+<p>The main table summarises refinement as “BA <span
+class="math inline">\(\to\)</span> filter <span
+class="math inline">\(\to\)</span> BA <span
+class="math inline">\(\to\)</span> final filter”, but the individual
+price of each step had so far been measured only as a sum. We keep the
+triangulated products fixed and stop the chain at different stages
+(Table <a href="#tab:stage" data-reference-type="ref"
+data-reference="tab:stage">[tab:stage]</a>): S1 runs one global BA with
+no filtering at all; S2 additionally removes outliers by reprojection
+error and trains immediately; S3 adds a second BA round after S2 (no
+trailing filter); the <em>full chain</em> is the main-table
+configuration.</p>
+<p>The two front-ends give <em>opposite</em> answers, and that contrast
+is itself the finding. The <span class="math inline">\(\Omega\)</span>
+front-end has already converged at S1: <span
+class="math inline">\(25.84\,\text{dB}\)</span>, marginally
+<em>above</em> the full chain (<span
+class="math inline">\(+0.05\,\text{dB}\)</span>, within noise) — one BA
+round takes all the gain that is available on this data, the following
+filter throws away <span
+class="math inline">\(74\,421\!\to\!51\,498\)</span> points for a
+quality change of <span class="math inline">\(-0.12\,\text{dB}\)</span>,
+and the second BA round merely recovers that loss (<span
+class="math inline">\(+0.01\,\text{dB}\)</span>). The VGGT front-end
+behaves the other way round: S1 reaches only <span
+class="math inline">\(24.81\,\text{dB}\)</span>, adding a filter
+<em>hurts</em> (<span class="math inline">\(24.39\,\text{dB}\)</span>,
+<span class="math inline">\(-0.42\,\text{dB}\)</span>), and only a
+following BA round restores the loss (<span
+class="math inline">\(24.89\,\text{dB}\)</span>); the trailing filter
+then delivers <span class="math inline">\(25.10\,\text{dB}\)</span>. Net
+gain of “filter <span class="math inline">\(+\)</span> second BA <span
+class="math inline">\(+\)</span> trailing filter” over a single BA
+round: <span class="math inline">\(+0.29\,\text{dB}\)</span> for <span
+class="math inline">\(21\text{s}\)</span> of extra BA (<span
+class="math inline">\(148\!\to\!169\text{s}\)</span>).</p>
+<p>This yields a rule that transfers directly to production:
+<strong>outlier filtering is not a gain term by itself, it is
+pre-clean-up for the next BA round</strong>. With a good front-end
+(<span class="math inline">\(\Omega\)</span>, rotation residual <span
+class="math inline">\(0.54^\circ\)</span>) both filtering and the second
+round are worth nothing; with a weaker one (VGGT, <span
+class="math inline">\(1.29^\circ\)</span>) filtering <em>alone</em> is
+harmful (<span class="math inline">\(-0.42\,\text{dB}\)</span>) and pays
+off only when paired with the following BA (net <span
+class="math inline">\(+0.29\,\text{dB}\)</span>) — filtering deletes
+observations according to a projection model that has not been re-fitted
+yet. Operationally, filtering and the following BA must be issued as one
+atomic step. Note again that S1 has the most points (unfiltered) yet is
+no worse than the filtered arms — 3DGS tolerates the number of initial
+points but not geometric inconsistency (§<a href="#sec:res-ablate"
+data-reference-type="ref" data-reference="sec:res-ablate">5.3</a>).</p>
+<div class="table*">
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Front-end</th>
+<th style="text-align: center;">Refinement stage</th>
+<th style="text-align: center;">Sparse points</th>
+<th style="text-align: center;">PSNR <span
+class="math inline">\(\uparrow\)</span></th>
+<th style="text-align: center;">SSIM <span
+class="math inline">\(\uparrow\)</span></th>
+<th style="text-align: center;">LPIPS <span
+class="math inline">\(\downarrow\)</span></th>
+<th style="text-align: center;"><span
+class="math inline">\(\Delta\)</span>PSNR vs full chain</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><span
+class="math inline">\(\Omega\)</span> front-end</td>
+<td style="text-align: center;">S1: one global BA (no outlier
+filtering)</td>
+<td style="text-align: center;">74,421</td>
+<td style="text-align: center;">25.84</td>
+<td style="text-align: center;">0.850</td>
+<td style="text-align: center;">0.215</td>
+<td style="text-align: center;"><span
+class="math inline">\(+0.05\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><span
+class="math inline">\(\Omega\)</span> front-end</td>
+<td style="text-align: center;">S2: BA + outlier filtering</td>
+<td style="text-align: center;">51,498</td>
+<td style="text-align: center;">25.67</td>
+<td style="text-align: center;">0.842</td>
+<td style="text-align: center;">0.220</td>
+<td style="text-align: center;"><span
+class="math inline">\(-0.12\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><span
+class="math inline">\(\Omega\)</span> front-end</td>
+<td style="text-align: center;">S3: S2 + a second BA round</td>
+<td style="text-align: center;">51,498</td>
+<td style="text-align: center;">25.80</td>
+<td style="text-align: center;">0.843</td>
+<td style="text-align: center;">0.220</td>
+<td style="text-align: center;"><span
+class="math inline">\(+0.01\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><span
+class="math inline">\(\Omega\)</span> front-end</strong></td>
+<td style="text-align: center;"><strong>Full chain (main table: S3 +
+trailing filter)</strong></td>
+<td style="text-align: center;">51,377</td>
+<td style="text-align: center;"><strong>25.79</strong></td>
+<td style="text-align: center;">0.843</td>
+<td style="text-align: center;">0.219</td>
+<td style="text-align: center;"><strong><span
+class="math inline">\(\pm\)</span>0.00</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">VGGT front-end</td>
+<td style="text-align: center;">S1: one global BA (no outlier
+filtering)</td>
+<td style="text-align: center;">47,872</td>
+<td style="text-align: center;">24.81</td>
+<td style="text-align: center;">0.804</td>
+<td style="text-align: center;">0.260</td>
+<td style="text-align: center;"><span
+class="math inline">\(-0.29\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;">VGGT front-end</td>
+<td style="text-align: center;">S2: BA + outlier filtering</td>
+<td style="text-align: center;">33,424</td>
+<td style="text-align: center;">24.39</td>
+<td style="text-align: center;">0.795</td>
+<td style="text-align: center;">0.266</td>
+<td style="text-align: center;"><span
+class="math inline">\(-0.71\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;">VGGT front-end</td>
+<td style="text-align: center;">S3: S2 + a second BA round</td>
+<td style="text-align: center;">33,424</td>
+<td style="text-align: center;">24.89</td>
+<td style="text-align: center;">0.810</td>
+<td style="text-align: center;">0.254</td>
+<td style="text-align: center;"><span
+class="math inline">\(-0.21\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>VGGT front-end</strong></td>
+<td style="text-align: center;"><strong>Full chain (main table: S3 +
+trailing filter)</strong></td>
+<td style="text-align: center;">33,162</td>
+<td style="text-align: center;"><strong>25.10</strong></td>
+<td style="text-align: center;">0.811</td>
+<td style="text-align: center;">0.253</td>
+<td style="text-align: center;"><strong><span
+class="math inline">\(\pm\)</span>0.00</strong></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h2 id="sec:res-tier">Training tiers: the main table is a floor
+setting</h2>
+<p>The nature of the main-table setting has to be stated up front: <span
+class="math inline">\(0.25\)</span> resolution <span
+class="math inline">\(+\ 7\,000\)</span> steps, together with the fast
+production script on the COLMAP side, is a configuration we chose
+<em>deliberately</em> as the minimum: it keeps the whole chain (front
+end <span class="math inline">\(+\)</span> training <span
+class="math inline">\(+\)</span> rendering <span
+class="math inline">\(+\)</span> evaluation) inside roughly ten minutes
+while still meeting the visual-quality bar required downstream, which is
+exactly what an ablation matrix that must be re-run repeatedly needs.
+The price is an absolute PSNR far below the 3DGS-paper convention, which
+raises a question we must answer: <strong>is the small gap between our
+chain and COLMAP an artefact of the floor setting?</strong>
+Under-fitting depresses every arm at once and can hide differences that
+only surface once training is adequate.</p>
+<p>We therefore raised the 3DGS training tier while <em>leaving every
+front-end product untouched</em> (poses, intrinsics and sparse point
+cloud byte-identical): medium <span class="math inline">\(=0.5\)</span>
+resolution <span class="math inline">\(/\ 20\,000\)</span> steps, high
+<span class="math inline">\(=1.0\)</span> native resolution <span
+class="math inline">\(/\ 30\,000\)</span> steps (Table <a
+href="#tab:tier" data-reference-type="ref"
+data-reference="tab:tier">3</a>, Figure <a href="#fig:tiers"
+data-reference-type="ref" data-reference="fig:tiers">6</a> left).</p>
+<p><strong>Absolute PSNR is not comparable across tiers</strong>: going
+from the low to the high tier multiplies the held-out pixel grid by
+<span class="math inline">\(16\times\)</span>, so detail errors are
+scored more strictly and <em>even the COLMAP reference itself</em> falls
+monotonically — PSNR <span
+class="math inline">\(25.77\!\to\!25.31\!\to\!24.65\,\text{dB}\)</span>,
+SSIM <span class="math inline">\(0.837\!\to\!0.822\!\to\!0.820\)</span>,
+LPIPS <span
+class="math inline">\(0.234\!\to\!0.282\!\to\!0.352\)</span>. The only
+comparable quantity is the within-tier difference <span
+class="math inline">\(\Delta=\text{arm}-\text{COLMAP}_{\text{same
+tier}}\)</span>, which we therefore report as an explicit column of
+Table <a href="#tab:tier" data-reference-type="ref"
+data-reference="tab:tier">3</a>; Figure <a href="#fig:tiers"
+data-reference-type="ref" data-reference="fig:tiers">6</a> (left) plots
+exactly those seven <span class="math inline">\(\Delta\)</span> curves
+over the three tiers.</p>
+<p>Three conclusions follow. (i) <strong>The BA arms stay in the
+reference’s immediate neighbourhood at all three tiers</strong>: <span
+class="math inline">\(\Omega\)</span> gives <span
+class="math inline">\(+0.02\,/\,-0.07\,/\,-0.07\,\text{dB}\)</span> and
+VGGT <span
+class="math inline">\(-0.67\,/\,-0.87\,/\,-0.76\,\text{dB}\)</span>,
+never more than <span class="math inline">\(0.9\,\text{dB}\)</span>
+away. The near-parity in the main table is therefore neither an artefact
+of the floor setting nor a coincidence that only appears once training
+is adequate. (ii) <strong>The <span
+class="math inline">\(4\sim7\,\text{dB}\)</span> deficit of the raw
+forward pass is never closed by training harder</strong>: <span
+class="math inline">\(\Omega\)</span> <span
+class="math inline">\(-4.42\,/\,-4.96\,/\,-4.51\,\text{dB}\)</span> and
+VGGT <span
+class="math inline">\(-5.79\,/\,-6.96\,/\,-5.99\,\text{dB}\)</span>;
+quadrupling both the pixel count and the iterations only measures the
+structural bias more precisely instead of removing it (the high tier is
+slightly better than the medium one, since <span
+class="math inline">\(0.5\)</span> sampling happens to sit at the most
+unfavourable point of the error curve). (iii) <strong>Triangulation
+without BA</strong> plateaus at <span
+class="math inline">\(-2.76\,/\,-3.31\,/\,-3.24\,\text{dB}\)</span>
+(<span class="math inline">\(\Omega\)</span>) and <span
+class="math inline">\(-4.78\,/\,-5.27\,/\,-4.89\,\text{dB}\)</span>
+(VGGT): replacing the point cloud recovers roughly a third to a half,
+the rest has to be extracted from the poses and intrinsics by BA. A
+single arm costs <span
+class="math inline">\(1\,518\!\sim\!2\,006\text{s}\)</span> at the high
+tier versus <span class="math inline">\(155\!\sim\!219\text{s}\)</span>
+at the low one, which is why the ablation matrix runs at the low tier;
+the medium and high tiers are therefore reported <em>as robustness
+ablations only</em> and do not replace the main table: every headline
+number in the abstract and in the text stays at the low-tier
+(main-table) setting, and the higher tiers are reported through Table <a
+href="#tab:tier" data-reference-type="ref"
+data-reference="tab:tier">3</a> and Figure <a href="#fig:tiers"
+data-reference-type="ref" data-reference="fig:tiers">6</a>; wall-clock
+figures in the table come from concurrent runs on the same machine and
+are order-of-magnitude only (e.g. the medium-tier VGGT <span
+class="math inline">\(+\)</span> triangulation arm shows <span
+class="math inline">\(1\,488\text{s}\)</span>, clearly slowed by its
+concurrent wave, whose same-wave control finished in <span
+class="math inline">\(731\text{s}\)</span>).</p>
+<div id="tab:tier">
+<table>
+<caption>Quality tiers: identical front-end products (byte-identical
+poses, intrinsics and sparse cloud); only the 3DGS training tier
+(resolution scaling and iteration count) changes. The low tier is the
+main-table setting, so its rows match Table <a href="#tab:main"
+data-reference-type="ref" data-reference="tab:main">1</a>. Absolute PSNR
+is not comparable across tiers (the held-out pixel grid grows <span
+class="math inline">\(16\times\)</span>); only the within-tier <span
+class="math inline">\(\Delta\)</span>PSNR against the same-tier COLMAP
+reference is.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">front-end configuration</th>
+<th style="text-align: center;">Training tier</th>
+<th style="text-align: center;">PSNR <span
+class="math inline">\(\uparrow\)</span></th>
+<th style="text-align: center;">SSIM <span
+class="math inline">\(\uparrow\)</span></th>
+<th style="text-align: center;">LPIPS <span
+class="math inline">\(\downarrow\)</span></th>
+<th style="text-align: center;"><span
+class="math inline">\(\Delta\)</span>PSNR vs same-tier COLMAP</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>COLMAP</strong></td>
+<td style="text-align: center;">low: 0.25x / 7k steps</td>
+<td style="text-align: center;"><strong>25.77</strong></td>
+<td style="text-align: center;">0.837</td>
+<td style="text-align: center;">0.234</td>
+<td style="text-align: center;"><span
+class="math inline">\(+0.00\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><span
+class="math inline">\(\Omega\)</span> raw forward</td>
+<td style="text-align: center;">low: 0.25x / 7k steps</td>
+<td style="text-align: center;">21.35</td>
+<td style="text-align: center;">0.674</td>
+<td style="text-align: center;">0.326</td>
+<td style="text-align: center;"><span
+class="math inline">\(-4.42\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><span
+class="math inline">\(\Omega\)</span> <span
+class="math inline">\(+\)</span> triangulation</td>
+<td style="text-align: center;">low: 0.25x / 7k steps</td>
+<td style="text-align: center;">23.01</td>
+<td style="text-align: center;">0.741</td>
+<td style="text-align: center;">0.290</td>
+<td style="text-align: center;"><span
+class="math inline">\(-2.76\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><span
+class="math inline">\(\Omega\)</span> <span
+class="math inline">\(+\)</span> triangulation <span
+class="math inline">\(+\)</span> BA</strong></td>
+<td style="text-align: center;">low: 0.25x / 7k steps</td>
+<td style="text-align: center;"><strong>25.79</strong></td>
+<td style="text-align: center;">0.843</td>
+<td style="text-align: center;">0.219</td>
+<td style="text-align: center;"><strong><span
+class="math inline">\(+0.02\)</span></strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">VGGT raw forward</td>
+<td style="text-align: center;">low: 0.25x / 7k steps</td>
+<td style="text-align: center;">19.98</td>
+<td style="text-align: center;">0.596</td>
+<td style="text-align: center;">0.427</td>
+<td style="text-align: center;"><span
+class="math inline">\(-5.79\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;">VGGT <span
+class="math inline">\(+\)</span> triangulation</td>
+<td style="text-align: center;">low: 0.25x / 7k steps</td>
+<td style="text-align: center;">20.99</td>
+<td style="text-align: center;">0.641</td>
+<td style="text-align: center;">0.372</td>
+<td style="text-align: center;"><span
+class="math inline">\(-4.78\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>VGGT <span
+class="math inline">\(+\)</span> triangulation <span
+class="math inline">\(+\)</span> BA</strong></td>
+<td style="text-align: center;">low: 0.25x / 7k steps</td>
+<td style="text-align: center;"><strong>25.10</strong></td>
+<td style="text-align: center;">0.811</td>
+<td style="text-align: center;">0.253</td>
+<td style="text-align: center;"><strong><span
+class="math inline">\(-0.67\)</span></strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>COLMAP</strong></td>
+<td style="text-align: center;">medium: 0.5x / 20k steps</td>
+<td style="text-align: center;"><strong>25.31</strong></td>
+<td style="text-align: center;">0.822</td>
+<td style="text-align: center;">0.282</td>
+<td style="text-align: center;"><span
+class="math inline">\(+0.00\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><span
+class="math inline">\(\Omega\)</span> raw forward</td>
+<td style="text-align: center;">medium: 0.5x / 20k steps</td>
+<td style="text-align: center;">20.35</td>
+<td style="text-align: center;">0.634</td>
+<td style="text-align: center;">0.388</td>
+<td style="text-align: center;"><span
+class="math inline">\(-4.96\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><span
+class="math inline">\(\Omega\)</span> <span
+class="math inline">\(+\)</span> triangulation</td>
+<td style="text-align: center;">medium: 0.5x / 20k steps</td>
+<td style="text-align: center;">22.00</td>
+<td style="text-align: center;">0.691</td>
+<td style="text-align: center;">0.361</td>
+<td style="text-align: center;"><span
+class="math inline">\(-3.31\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><span
+class="math inline">\(\Omega\)</span> <span
+class="math inline">\(+\)</span> triangulation <span
+class="math inline">\(+\)</span> BA</strong></td>
+<td style="text-align: center;">medium: 0.5x / 20k steps</td>
+<td style="text-align: center;"><strong>25.24</strong></td>
+<td style="text-align: center;">0.824</td>
+<td style="text-align: center;">0.270</td>
+<td style="text-align: center;"><strong><span
+class="math inline">\(-0.07\)</span></strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">VGGT raw forward</td>
+<td style="text-align: center;">medium: 0.5x / 20k steps</td>
+<td style="text-align: center;">18.35</td>
+<td style="text-align: center;">0.568</td>
+<td style="text-align: center;">0.472</td>
+<td style="text-align: center;"><span
+class="math inline">\(-6.96\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;">VGGT <span
+class="math inline">\(+\)</span> triangulation</td>
+<td style="text-align: center;">medium: 0.5x / 20k steps</td>
+<td style="text-align: center;">20.04</td>
+<td style="text-align: center;">0.609</td>
+<td style="text-align: center;">0.441</td>
+<td style="text-align: center;"><span
+class="math inline">\(-5.27\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>VGGT <span
+class="math inline">\(+\)</span> triangulation <span
+class="math inline">\(+\)</span> BA</strong></td>
+<td style="text-align: center;">medium: 0.5x / 20k steps</td>
+<td style="text-align: center;"><strong>24.44</strong></td>
+<td style="text-align: center;">0.784</td>
+<td style="text-align: center;">0.310</td>
+<td style="text-align: center;"><strong><span
+class="math inline">\(-0.87\)</span></strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>COLMAP</strong></td>
+<td style="text-align: center;">high: 1.0x / 30k steps</td>
+<td style="text-align: center;"><strong>24.65</strong></td>
+<td style="text-align: center;">0.820</td>
+<td style="text-align: center;">0.352</td>
+<td style="text-align: center;"><span
+class="math inline">\(+0.00\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><span
+class="math inline">\(\Omega\)</span> raw forward</td>
+<td style="text-align: center;">high: 1.0x / 30k steps</td>
+<td style="text-align: center;">20.14</td>
+<td style="text-align: center;">0.682</td>
+<td style="text-align: center;">0.440</td>
+<td style="text-align: center;"><span
+class="math inline">\(-4.51\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><span
+class="math inline">\(\Omega\)</span> <span
+class="math inline">\(+\)</span> triangulation</td>
+<td style="text-align: center;">high: 1.0x / 30k steps</td>
+<td style="text-align: center;">21.41</td>
+<td style="text-align: center;">0.714</td>
+<td style="text-align: center;">0.425</td>
+<td style="text-align: center;"><span
+class="math inline">\(-3.24\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><span
+class="math inline">\(\Omega\)</span> <span
+class="math inline">\(+\)</span> triangulation <span
+class="math inline">\(+\)</span> BA</strong></td>
+<td style="text-align: center;">high: 1.0x / 30k steps</td>
+<td style="text-align: center;"><strong>24.58</strong></td>
+<td style="text-align: center;">0.822</td>
+<td style="text-align: center;">0.341</td>
+<td style="text-align: center;"><strong><span
+class="math inline">\(-0.07\)</span></strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">VGGT raw forward</td>
+<td style="text-align: center;">high: 1.0x / 30k steps</td>
+<td style="text-align: center;">18.66</td>
+<td style="text-align: center;">0.654</td>
+<td style="text-align: center;">0.505</td>
+<td style="text-align: center;"><span
+class="math inline">\(-5.99\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;">VGGT <span
+class="math inline">\(+\)</span> triangulation</td>
+<td style="text-align: center;">high: 1.0x / 30k steps</td>
+<td style="text-align: center;">19.76</td>
+<td style="text-align: center;">0.671</td>
+<td style="text-align: center;">0.489</td>
+<td style="text-align: center;"><span
+class="math inline">\(-4.89\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>VGGT <span
+class="math inline">\(+\)</span> triangulation <span
+class="math inline">\(+\)</span> BA</strong></td>
+<td style="text-align: center;">high: 1.0x / 30k steps</td>
+<td style="text-align: center;"><strong>23.89</strong></td>
+<td style="text-align: center;">0.791</td>
+<td style="text-align: center;">0.376</td>
+<td style="text-align: center;"><strong><span
+class="math inline">\(-0.76\)</span></strong></td>
+</tr>
+</tbody>
+</table>
+</div>
+<figure id="fig:tiers" data-latex-placement="t">
+<img src="figures_en/fig9_tiers_and_fusion.png" />
+<figcaption>Left: within each of the three training tiers (low <span
+class="math inline">\(0.25/7\)</span>k, medium <span
+class="math inline">\(0.5/20\)</span>k, high <span
+class="math inline">\(1.0/30\)</span>k), PSNR difference relative to the
+<em>same-tier</em> COLMAP reference (absolute values are not comparable
+across tiers, hence differences only). Right: fusion arms (same BA
+poses, only the 3DGS initialisation changes); each bar is annotated
+PSNR / SSIM / LPIPS.</figcaption>
+</figure>
+<h2 id="sec:res-fuse">Fusion arms: can SIFT and network points be
+combined?</h2>
+<p>The graft ablation in Section <a href="#sec:res-ablate"
+data-reference-type="ref" data-reference="sec:res-ablate">5.3</a>
+<em>replaced</em> the triangulated cloud with the network point map,
+which hurts. Replacement is also the crudest possible use, and the two
+error sources are in fact complementary: triangulation noise scales like
+<span class="math inline">\(1/\text{baseline}\)</span> and blows up for
+adjacent video frames, while network depth is very stable exactly in
+textured, wide-baseline regions and fails only in
+texture-less/over-exposed/occluded ones. We therefore implemented and
+tested <strong>fusion arms</strong>: BA poses and intrinsics stay fixed,
+and only the 3DGS initialisation becomes</p>
+<p><span class="math display">\[\begin{equation}
+\mathcal{P}_{\text{init}} \;=\; \mathcal{P}_{\text{SIFT}}^{\text{BA}}
+\;\cup\; \big\{\mathrm{Sim3}\big(X_{\text{net}}(u,v)\big)\;\big|\;
+c(u,v) &gt; \tau \big\},
+\end{equation}\]</span></p>
+<p>where network points are obtained by per-pixel back-projection of the
+depth, transported into the BA world frame by the Umeyama similarity
+between the pre- and post-BA camera centres, randomly downsampled to
+<span class="math inline">\(1\,\text{M}\)</span>, and inserted with
+<em>empty</em> tracks (they have no 2D observations, so they never enter
+the residual of Eq. <a href="#eq:ba" data-reference-type="eqref"
+data-reference="eq:ba">[eq:ba]</a>; they only seed densification), while
+SIFT points keep their 2D tracks verbatim. The threshold <span
+class="math inline">\(\tau\)</span> is <span
+class="math inline">\(1.2\)</span> (the official confidence filter).
+Because confidence units are not comparable across networks (<span
+class="math inline">\(\Omega\)</span> keeps <span
+class="math inline">\(87.9\%\)</span> of pixels at <span
+class="math inline">\(\tau{=}1.2\)</span>, VGGT only <span
+class="math inline">\(35.1\%\)</span>), we additionally run a
+<strong>quantile-matched</strong> control <code>omegafuseq</code> (<span
+class="math inline">\(\tau{=}22.08\)</span>, bringing <span
+class="math inline">\(\Omega\)</span>’s retention to the same <span
+class="math inline">\(35.1\%\)</span>), which removes "more injection
+causes more harm" as a confound.</p>
+<p>Table <a href="#tab:fuse" data-reference-type="ref"
+data-reference="tab:fuse">4</a> and Figure <a href="#fig:tiers"
+data-reference-type="ref" data-reference="fig:tiers">6</a> right give
+three clean results:</p>
+<p><strong>(1) Monotone ordering: SIFT <span
+class="math inline">\(\cup\)</span> network <span
+class="math inline">\(&gt;\)</span> pure network, but <span
+class="math inline">\(&lt;\)</span> pure SIFT.</strong> <span
+class="math inline">\(\Omega\)</span>: <span
+class="math inline">\(25.79\to24.66\to22.99\,\text{dB}\)</span>; VGGT:
+<span class="math inline">\(25.10\to24.55\to21.90\,\text{dB}\)</span>.
+The network cloud clearly <em>carries</em> information (the union beats
+pure network points by <span class="math inline">\(+1.67\)</span>/<span
+class="math inline">\(+2.65\,\text{dB}\)</span>), but on this scene its
+contribution is far outweighed by the dilution of the SIFT
+initialisation.</p>
+<p><strong>(2) Dilution has a measurable price.</strong> <span
+class="math inline">\(1\,\text{M}\)</span> network points against <span
+class="math inline">\(51\text{k}\)</span> SIFT points (<span
+class="math inline">\(\Omega\)</span>) / <span
+class="math inline">\(33\text{k}\)</span> (VGGT) put a cloud of drifting
+points at the densification start: final Gaussian count <span
+class="math inline">\(634\text{k}\!\to\!1\,124\text{k}\)</span> (<span
+class="math inline">\(+77\%\)</span>), training wall-clock <span
+class="math inline">\(179\text{s}\!\to\!313\text{s}\)</span> (<span
+class="math inline">\(+75\%\)</span>), and the quantile-matched arm
+still needs <span
+class="math inline">\(1\,164\text{k}/435\text{s}\)</span> — for
+<em>lower</em> quality. SSIM/LPIPS move the same way (<span
+class="math inline">\(0.843\!\to\!0.824\)</span>, <span
+class="math inline">\(0.219\!\to\!0.223\)</span>), so this is neither a
+metric preference nor "more compute for more quality".</p>
+<p><strong>(3) Injection volume is the main source of harm, but aligning
+quantiles still yields no positive gain.</strong> Raising <span
+class="math inline">\(\Omega\)</span>’s threshold to <span
+class="math inline">\(\tau{=}22.08\)</span> (<code>omegafuseq</code>,
+retention matched to VGGT’s <span class="math inline">\(35.1\%\)</span>)
+recovers <span class="math inline">\(+0.68\,\text{dB}\)</span> to <span
+class="math inline">\(25.34\)</span> and brings SSIM/LPIPS almost back
+to pure-SIFT levels (<span class="math inline">\(0.835/0.221\)</span> vs
+<span class="math inline">\(0.843/0.219\)</span>): roughly two thirds of
+the <span class="math inline">\(-1.13\,\text{dB}\)</span> comes from
+pouring in low-confidence drift as well. But matching quantiles still
+does not catch up with pure SIFT: <span
+class="math inline">\(\Delta=-0.45\,\text{dB}\)</span> (<span
+class="math inline">\(\Omega\)</span>) and <span
+class="math inline">\(-0.55\,\text{dB}\)</span> (VGGT), the same
+magnitude. The mechanism is that geometry injected <em>as
+observations</em> without corresponding 2D observations is treated by
+3DGS as "free ellipsoids that can be fitted from any viewing direction",
+and on held-out views it is necessarily fitted to the wrong place — a
+weakened version of the same mechanism as the graft arm, not simply "too
+many points".</p>
+<p>The practical recommendation is therefore: <strong>keep the network
+geometry at the pose/initialisation layer and do not connect it to the
+3DGS initialisation</strong>. Exploiting the complementarity properly
+means turning the dense geometry into a <em>weighted soft
+constraint</em> rather than a point observation (adding <span
+class="math inline">\(\lambda\rho(\|X-\mathrm{proj}(X_{\text{net}})\|^2)\)</span>
+to the training objective, or modulating the densification threshold
+only where <span class="math inline">\(c&gt;\tau\)</span>), which we
+leave to future work.</p>
+<div id="tab:fuse">
+<table>
+<caption>Fusion arms: BA poses and intrinsics fixed; only the 3DGS
+initialisation changes, to SIFT sparse points <span
+class="math inline">\(\cup\)</span> confidence-filtered network dense
+points (low tier 0.25/7k, same setting as the main table). SIFT points
+keep their 2D tracks; network points enter with empty tracks
+(densification seeds only, outside the BA residual).</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Fusion arm</th>
+<th style="text-align: center;">conf</th>
+<th style="text-align: center;">retention</th>
+<th style="text-align: center;">SIFT points</th>
+<th style="text-align: center;">network pts</th>
+<th style="text-align: center;">PSNR <span
+class="math inline">\(\uparrow\)</span></th>
+<th style="text-align: center;">SSIM <span
+class="math inline">\(\uparrow\)</span></th>
+<th style="text-align: center;">LPIPS <span
+class="math inline">\(\downarrow\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>omegatriba</strong></td>
+<td style="text-align: center;">-</td>
+<td style="text-align: center;">-</td>
+<td style="text-align: center;">51,377</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;"><strong>25.79</strong></td>
+<td style="text-align: center;">0.843</td>
+<td style="text-align: center;">0.219</td>
+</tr>
+<tr>
+<td style="text-align: left;">omegafuse</td>
+<td style="text-align: center;">1.2</td>
+<td style="text-align: center;">0.879</td>
+<td style="text-align: center;">51,377</td>
+<td style="text-align: center;">1,000,000</td>
+<td style="text-align: center;">24.66</td>
+<td style="text-align: center;">0.824</td>
+<td style="text-align: center;">0.223</td>
+</tr>
+<tr>
+<td style="text-align: left;">omegafuseq</td>
+<td style="text-align: center;">22.08</td>
+<td style="text-align: center;">0.350</td>
+<td style="text-align: center;">51,377</td>
+<td style="text-align: center;">1,000,000</td>
+<td style="text-align: center;">25.34</td>
+<td style="text-align: center;">0.835</td>
+<td style="text-align: center;">0.221</td>
+</tr>
+<tr>
+<td style="text-align: left;">omegatriba_vgpts</td>
+<td style="text-align: center;">-</td>
+<td style="text-align: center;">-</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">1,000,000</td>
+<td style="text-align: center;">22.99</td>
+<td style="text-align: center;">0.766</td>
+<td style="text-align: center;">0.264</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>vggttriba</strong></td>
+<td style="text-align: center;">-</td>
+<td style="text-align: center;">-</td>
+<td style="text-align: center;">33,162</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;"><strong>25.10</strong></td>
+<td style="text-align: center;">0.811</td>
+<td style="text-align: center;">0.253</td>
+</tr>
+<tr>
+<td style="text-align: left;">vggtfuse</td>
+<td style="text-align: center;">1.2</td>
+<td style="text-align: center;">0.351</td>
+<td style="text-align: center;">33,162</td>
+<td style="text-align: center;">1,000,000</td>
+<td style="text-align: center;">24.55</td>
+<td style="text-align: center;">0.800</td>
+<td style="text-align: center;">0.254</td>
+</tr>
+<tr>
+<td style="text-align: left;">vggttriba_vgpts</td>
+<td style="text-align: center;">-</td>
+<td style="text-align: center;">-</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">1,000,000</td>
+<td style="text-align: center;">21.90</td>
+<td style="text-align: center;">0.709</td>
+<td style="text-align: center;">0.341</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h2 id="sec:res-scene">Cross-scene replication: does anything survive
+outside the first video?</h2>
+<p>The main matrix uses a single 83-frame driving video (weakly textured
+ground, occluding vehicles). To rule out scene dependence we re-ran all
+seven links on a second, independent clip (redcar, <span
+class="math inline">\(191\)</span> frames at <span
+class="math inline">\(1920\!\times\!1080\)</span>, shipped with its own
+exhaustive SIFT database and a third-party COLMAP 3.x model) using a
+training tier <em>parameter-for-parameter identical</em> to the main
+table (<span class="math inline">\(0.25\)</span> resolution <span
+class="math inline">\(/\ 7\,000\)</span> steps, same machine, same
+concurrent wave, same protocol). Table <a href="#tab:scene"
+data-reference-type="ref" data-reference="tab:scene">[tab:scene]</a> and
+Figure <a href="#fig:scene" data-reference-type="ref"
+data-reference="fig:scene">7</a> (left) give the result.</p>
+<p><strong>The qualitative conclusions replicate verbatim; the
+magnitudes differ.</strong> Raw forward input lands <span
+class="math inline">\(-2.28\,\text{dB}\)</span> (<span
+class="math inline">\(\Omega\)</span>) and <span
+class="math inline">\(-3.80\,\text{dB}\)</span> (VGGT) below the
+reference — about half the main-scene deficit (<span
+class="math inline">\(-4.42\)</span>/<span
+class="math inline">\(-5.79\,\text{dB}\)</span>). Triangulation alone
+moves <span class="math inline">\(\Omega\)</span> barely at all (<span
+class="math inline">\(22.79\!\to\!22.83\)</span>, <span
+class="math inline">\(+0.04\,\text{dB}\)</span>) and VGGT by <span
+class="math inline">\(+0.65\,\text{dB}\)</span>; adding one global BA
+brings both arms to <span
+class="math inline">\(-0.26\,\text{dB}\)</span> and <span
+class="math inline">\(-0.58\,\text{dB}\)</span> — <span
+class="math inline">\(+1.98\,\text{dB}\)</span> (<span
+class="math inline">\(\Omega\)</span>) and <span
+class="math inline">\(+2.57\,\text{dB}\)</span> (VGGT) on top of their
+own triangulated inputs, <span
+class="math inline">\(+2.02\)</span>/<span
+class="math inline">\(+3.22\,\text{dB}\)</span> on top of raw forward.
+All three main-table statements hold: <em>raw forward is not directly
+usable, triangulation recovers only part, and BA is what returns quality
+to the reference’s level</em>. The weakest arm repeated three times
+gives <span class="math inline">\(21.89/21.92/21.93\,\text{dB}\)</span>
+(<span class="math inline">\(\pm0.04\,\text{dB}\)</span>), so the
+ordering is not jitter.</p>
+<p><strong>The marginal value of triangulation is scene-dependent; that
+of BA is not.</strong> Triangulation alone is worth <span
+class="math inline">\(+1.66\,\text{dB}\)</span> for <span
+class="math inline">\(\Omega\)</span> on the main scene but <span
+class="math inline">\(+0.04\,\text{dB}\)</span> here, whereas the BA
+step is worth <span class="math inline">\(+2.78\)</span>/<span
+class="math inline">\(+1.98\,\text{dB}\)</span> (<span
+class="math inline">\(\Omega\)</span>) and <span
+class="math inline">\(+4.11\)</span>/<span
+class="math inline">\(+2.57\,\text{dB}\)</span> (VGGT) on the two
+scenes. The mechanism is the same as in §<a href="#sec:res-main"
+data-reference-type="ref" data-reference="sec:res-main">5.1</a>:
+triangulation replaces an initialisation that is co-distributed with the
+depth head, so its payoff depends on how depth error and 2D noise
+compare in a given scene (redcar is richly textured with wide baselines,
+so the network depth is already decent), while BA repairs poses and
+intrinsics, and any front-end that leaves <span
+class="math inline">\(k_1\equiv0\)</span> and a biased focal length
+benefits by a stable amount. Triangulation is the step that gives BA the
+right observability; BA is the payoff.</p>
+<p><strong>One difference we must report honestly.</strong> The COLMAP
+reference here is a third-party model with an OPENCV camera (<span
+class="math inline">\(f_x=1833.78\neq f_y=1637.84\)</span>, <span
+class="math inline">\(12\%\)</span> apart), while all our network arms
+use SIMPLE_RADIAL (<span class="math inline">\(f_x=f_y\)</span>). This
+mismatch <em>cannot</em> be compensated by BA under SIMPLE_RADIAL, so
+the remaining <span
+class="math inline">\(1.22\!\sim\!1.26^\circ\)</span> rotation residual
+after BA (versus <span class="math inline">\(0.0701^\circ\)</span> for
+<span class="math inline">\(\Omega\)</span> on the main scene) should be
+read as a limitation of the camera-model family, not as unconverged BA:
+the two independent front-ends agree with each other to <span
+class="math inline">\(0.287^\circ\)</span> with camera centres <span
+class="math inline">\(0.193\%\)</span> of the trajectory diagonal apart
+(Fig. <a href="#fig:scene" data-reference-type="ref"
+data-reference="fig:scene">7</a>, right) — they converge to the same
+geometry, which simply does not fit inside the reference’s
+parameterisation. Practical corollary: <strong>align camera-model
+families before comparing pose residuals across datasets</strong>,
+otherwise the residual measures model mismatch rather than accuracy.</p>
+<div class="table*">
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">arm</th>
+<th style="text-align: center;">front-end configuration</th>
+<th style="text-align: center;">Sparse points</th>
+<th style="text-align: center;">rotation residual p50 <span
+class="math inline">\((^\circ)\)</span></th>
+<th style="text-align: center;">reproj. (px)</th>
+<th style="text-align: center;">PSNR <span
+class="math inline">\(\uparrow\)</span></th>
+<th style="text-align: center;">SSIM <span
+class="math inline">\(\uparrow\)</span></th>
+<th style="text-align: center;">LPIPS <span
+class="math inline">\(\downarrow\)</span></th>
+<th style="text-align: center;"><span
+class="math inline">\(\Delta\)</span>PSNR vs same-scene COLMAP</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>rc_cmap</strong></td>
+<td style="text-align: center;"><strong>COLMAP</strong></td>
+<td style="text-align: center;">37,995</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">1.047</td>
+<td style="text-align: center;"><strong>25.07</strong></td>
+<td style="text-align: center;">0.690</td>
+<td style="text-align: center;">0.329</td>
+<td style="text-align: center;"><span
+class="math inline">\(+0.00\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;">rc_omega</td>
+<td style="text-align: center;"><span
+class="math inline">\(\Omega\)</span> raw forward</td>
+<td style="text-align: center;">487,313</td>
+<td style="text-align: center;">1.4927</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">22.79</td>
+<td style="text-align: center;">0.582</td>
+<td style="text-align: center;">0.358</td>
+<td style="text-align: center;"><span
+class="math inline">\(-2.28\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;">rc_omegatri</td>
+<td style="text-align: center;"><span
+class="math inline">\(\Omega\)</span> <span
+class="math inline">\(+\)</span> triangulation</td>
+<td style="text-align: center;">67,375</td>
+<td style="text-align: center;">1.4927</td>
+<td style="text-align: center;">1.470</td>
+<td style="text-align: center;">22.83</td>
+<td style="text-align: center;">0.579</td>
+<td style="text-align: center;">0.407</td>
+<td style="text-align: center;"><span
+class="math inline">\(-2.24\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>rc_omegatriba</strong></td>
+<td style="text-align: center;"><strong><span
+class="math inline">\(\Omega\)</span> <span
+class="math inline">\(+\)</span> triangulation <span
+class="math inline">\(+\)</span> BA</strong></td>
+<td style="text-align: center;">50,840</td>
+<td style="text-align: center;">1.2578</td>
+<td style="text-align: center;">0.704</td>
+<td style="text-align: center;"><strong>24.81</strong></td>
+<td style="text-align: center;">0.689</td>
+<td style="text-align: center;">0.319</td>
+<td style="text-align: center;"><strong><span
+class="math inline">\(-0.26\)</span></strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">rc_vggt</td>
+<td style="text-align: center;">VGGT raw forward</td>
+<td style="text-align: center;">486,423</td>
+<td style="text-align: center;">1.3422</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">21.27</td>
+<td style="text-align: center;">0.514</td>
+<td style="text-align: center;">0.415</td>
+<td style="text-align: center;"><span
+class="math inline">\(-3.80\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;">rc_vggttri</td>
+<td style="text-align: center;">VGGT <span
+class="math inline">\(+\)</span> triangulation</td>
+<td style="text-align: center;">56,616</td>
+<td style="text-align: center;">1.3422</td>
+<td style="text-align: center;">1.569</td>
+<td style="text-align: center;">21.92</td>
+<td style="text-align: center;">0.532</td>
+<td style="text-align: center;">0.454</td>
+<td style="text-align: center;"><span
+class="math inline">\(-3.15\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>rc_vggttriba</strong></td>
+<td style="text-align: center;"><strong>VGGT <span
+class="math inline">\(+\)</span> triangulation <span
+class="math inline">\(+\)</span> BA</strong></td>
+<td style="text-align: center;">41,595</td>
+<td style="text-align: center;">1.2206</td>
+<td style="text-align: center;">0.671</td>
+<td style="text-align: center;"><strong>24.49</strong></td>
+<td style="text-align: center;">0.667</td>
+<td style="text-align: center;">0.341</td>
+<td style="text-align: center;"><strong><span
+class="math inline">\(-0.58\)</span></strong></td>
+</tr>
+</tbody>
+</table>
+</div>
+<figure id="fig:scene" data-latex-placement="t">
+<img src="figures_en/fig10_cross_scene.png" />
+<figcaption>Left: PSNR gap to the <em>same-scene</em> COLMAP reference
+for two scenes and three front-end stages (pale <span
+class="math inline">\(=\)</span> scene 1, 83 frames; solid <span
+class="math inline">\(=\)</span> scene 2, redcar, 191 frames). Right: on
+redcar, rotation residual p50 per arm (bars, left axis) against held-out
+PSNR (line, right axis); triangulation leaves poses untouched, hence
+identical bar heights, and BA moves both together, while the two
+independent BA solutions differ by only <span
+class="math inline">\(0.287^\circ\)</span> (the remaining residual stems
+from the reference’s OPENCV model family).</figcaption>
+</figure>
+<h2 id="sec:collapse">Silent collapse: incremental mapping can fail
+without reporting failure</h2>
+<p>A third and a fourth scene (Table <a href="#tab:scene2"
+data-reference-type="ref" data-reference="tab:scene2">5</a>, Fig. <a
+href="#fig:collapse" data-reference-type="ref"
+data-reference="fig:collapse">8</a>; re-run on the L20 with the main
+table’s tier, which reproduces the Iluvatar numbers to <span
+class="math inline">\(\le\)</span>0.21 , appendix <a href="#app:l20"
+data-reference-type="ref" data-reference="app:l20">11</a>) were meant as
+routine replication. On <code>twocars</code> — an 83-frame handheld
+<em>orbit</em> around two parked cars, i.e. a closed loop — the COLMAP
+arm instead finished <span
+class="math inline">\(2.71\,\text{dB}\)</span> <em>below</em> our own
+chain and <span class="math inline">\(0.35\,\text{dB}\)</span> below
+even the bare <span class="math inline">\(\Omega\)</span> forward pass,
+so we examined the reference instead of our chain.</p>
+<p><strong>Nothing announces the failure.</strong> The mapper registers
+<span class="math inline">\(83/83\)</span> frames, returns <span
+class="math inline">\(26\,316\)</span> points at <span
+class="math inline">\(0.691\,\text{px}\)</span> mean reprojection,
+exports cleanly, loads in nerficg and trains. Four things are wrong. (i)
+Inside <span class="math inline">\(30\)</span> global BA rounds Ceres
+reports <code>Linear solver failure</code> <span
+class="math inline">\(42\)</span> times — a singular Cholesky
+factorisation of the normal equations, i.e. a rank-deficient sub-problem
+it had to regularise around (Table <a href="#tab:pathology"
+data-reference-type="ref" data-reference="tab:pathology">6</a>); the
+well-behaved <code>traffic</code> scene reports <span
+class="math inline">\(0\)</span>. (ii) The path itself is four
+near-collinear runs joined by teleports (Fig. <a href="#fig:collapse"
+data-reference-type="ref" data-reference="fig:collapse">8</a>a), whereas
+a hand-held orbit is a closed curve. (iii) The per-frame camera step is
+not monotone: normalised steps span <span
+class="math inline">\(10^{-4}\)</span>–<span
+class="math inline">\(0.24\)</span> with <span
+class="math inline">\(\mathrm{cv}=4.12\)</span> against <span
+class="math inline">\(0.27\)</span> for our chain (Fig. <a
+href="#fig:collapse" data-reference-type="ref"
+data-reference="fig:collapse">8</a>b). Uniform sampling forces the
+physical floor <span class="math inline">\(\approx1/N\)</span>; the
+reference sits at a quarter of that floor for sixty frames and then
+jumps <span class="math inline">\(\sim\)</span>100<span
+class="math inline">\(\times\)</span> twice — no handheld operator moves
+like that. (iv) Mapping costs <span
+class="math inline">\(681\text{s}\)</span> against <span
+class="math inline">\(220\text{s}\)</span> on <code>traffic</code> with
+one image fewer and the same feature budget: the extra time is
+retry-and-regularise around a singular system, which is also why it buys
+nothing.</p>
+<h2 id="sec:verdict">An image-based arbitration that uses neither
+reconstruction</h2>
+<p>Held-out PSNR cannot settle this: if the reference geometry is wrong,
+the arm that disagrees with it loses points, and “which geometry do the
+images support?” stays open. Neither can each model’s own reprojection
+error — the reference reports <span
+class="math inline">\(0.691\,\text{px}\)</span> on its own points, and
+route B already taught us that the most self-consistent solution can be
+the least correct (§<a href="#sec:routeB" data-reference-type="ref"
+data-reference="sec:routeB">3.3</a>). We therefore score every candidate
+against evidence that <em>no reconstruction produced</em>: the
+<code>two_view_geometries</code> table of the database, i.e. SIFT inlier
+pairs accepted by two-view geometric verification, a verdict computed by
+the matcher from image data alone and never touching mapping. For each
+image pair (frame gap <span class="math inline">\(\ge 8\)</span> so that
+a baseline exists; <span class="math inline">\(767\)</span> pairs, <span
+class="math inline">\(\le\)</span>300 inlier pairs each, <span
+class="math inline">\(155\,843\)</span> observations) we triangulate
+each inlier pair by DLT <em>under the candidate’s own cameras</em> and
+measure the reprojection residual, requiring cheirality and a
+triangulation angle <span class="math inline">\(&gt;0.5^\circ\)</span>.
+Two design decisions keep the comparison honest: lens distortion is
+ignored <em>for every</em> candidate (pinhole-only scoring), so that an
+OPENCV arm with eight parameters is not rewarded over a SIMPLE_RADIAL
+arm with four; and because the fraction of triangulable observations
+differs between candidates (<span class="math inline">\(0.84\)</span>
+for the reference, <span class="math inline">\(0.65\)</span> for ours —
+the closing loop puts more of the shared matches behind our cameras),
+all statistics are computed on the <em>paired</em> subset of <span
+class="math inline">\(86\,350\)</span> observations triangulable under
+all five distinct camera models (the raw and <span
+class="math inline">\(+\)</span>tri rows of a network share one
+model).</p>
+<p>The verdict is unambiguous and it does not favour the reference:
+<span class="math inline">\(1.642\,\text{px}\)</span> p50 with p90 <span
+class="math inline">\(=25.1\,\text{px}\)</span> and <span
+class="math inline">\(31.5\%\)</span> of observations above <span
+class="math inline">\(4\,\text{px}\)</span> for COLMAP, against <span
+class="math inline">\(0.636\,\text{px}\)</span> / <span
+class="math inline">\(1.81\,\text{px}\)</span> / <span
+class="math inline">\(2.0\%\)</span> for the <span
+class="math inline">\(\Omega\)</span> chain and <span
+class="math inline">\(0.579\,\text{px}\)</span> / <span
+class="math inline">\(2.03\,\text{px}\)</span> / <span
+class="math inline">\(2.3\%\)</span> for the <span
+class="math inline">\(V\)</span> chain; paired per-observation, the
+<span class="math inline">\(\Omega\)</span> arm beats the reference on
+<span class="math inline">\(82.9\%\)</span> and the <span
+class="math inline">\(V\)</span> arm on <span
+class="math inline">\(73.7\%\)</span> of the shared evidence. The
+control scene behaves as it should: <span
+class="math inline">\(0.245\,\text{px}\)</span> versus <span
+class="math inline">\(0.232\,\text{px}\)</span>, win rate <span
+class="math inline">\(59.1\%\)</span> — a tie, so the test does not
+manufacture a verdict on its own. Read together with Table <a
+href="#tab:scene2" data-reference-type="ref"
+data-reference="tab:scene2">5</a>, the images side with the arm that
+also reconstructs better, and the <span
+class="math inline">\(+2.71\,\text{dB}\)</span> is not our chain beating
+a straw man but a symptom of the same underlying defect.</p>
+<p><strong>Same chain, other network.</strong> Re-running the entire
+protocol with the VGGT-1B front-end turns the two-clip replication into
+a <span class="math inline">\(2\times2\)</span> across scenes and
+networks (bottom three rows of each block of Table <a href="#tab:scene2"
+data-reference-type="ref" data-reference="tab:scene2">5</a>). VGGT-1B is
+the weaker front-end at both clips — its raw poses sit at <span
+class="math inline">\(0.85^\circ\)</span> against <span
+class="math inline">\(\Omega\)</span>’s <span
+class="math inline">\(0.18^\circ\)</span> on <code>traffic</code> and
+its verdict p50 is <span class="math inline">\(2.01\,\text{px}\)</span>
+against <span class="math inline">\(1.00\,\text{px}\)</span> — and its
+raw arm is the worst of all seven: <span
+class="math inline">\(-6.31\,\text{dB}\)</span> on <code>traffic</code>,
+and <span class="math inline">\(-1.77\,\text{dB}\)</span> on
+<code>twocars</code>, <em>below</em> even the collapsed reference.
+Route A repairs it with the same two steps: on <code>traffic</code>,
+<span class="math inline">\(V\)</span>+tri+BA lands at <span
+class="math inline">\(26.55\,\text{dB}\)</span> (<span
+class="math inline">\(-0.28\,\text{dB}\)</span> from the reference,
+verdict <span class="math inline">\(0.255\,\text{px}\)</span>, win rate
+<span class="math inline">\(51.4\%\)</span> — statistically tied),
+recovering <span class="math inline">\(+6.03\,\text{dB}\)</span> of the
+raw deficit; on <code>twocars</code> it recovers <span
+class="math inline">\(+3.68\,\text{dB}\)</span> over its own raw pass to
+<span class="math inline">\(22.99\,\text{dB}\)</span> (<span
+class="math inline">\(+1.91\,\text{dB}\)</span> over the reference) and
+posts the strongest verdict of any candidate, <span
+class="math inline">\(0.579\,\text{px}\)</span> with <span
+class="math inline">\(2.3\%\)</span> of observations above <span
+class="math inline">\(4\,\text{px}\)</span> (<span
+class="math inline">\(73.7\%\)</span> paired win rate against the
+reference). The repair is thus not an <span
+class="math inline">\(\Omega\)</span>-specific patch; it scales with the
+damage (<span class="math inline">\(+3.68\)</span>/<span
+class="math inline">\(+6.03\,\text{dB}\)</span> recovered for <span
+class="math inline">\(V\)</span> against <span
+class="math inline">\(+2.36\)</span>/<span
+class="math inline">\(+3.14\,\text{dB}\)</span> for <span
+class="math inline">\(\Omega\)</span>), and wherever the reference is
+itself healthy both networks finish within <span
+class="math inline">\(0.3\,\text{dB}\)</span> of it. The bill of the
+<span class="math inline">\(V\)</span> chain is dominated by the same BA
+stage (<span class="math inline">\(51\)</span>+<span
+class="math inline">\(12\text{s}\)</span> on <code>twocars</code>, <span
+class="math inline">\(107\)</span>+<span
+class="math inline">\(41\text{s}\)</span> on <code>traffic</code>; the
+<span class="math inline">\(518\)</span>-resolution forward pass itself
+costs <span class="math inline">\(7.7\text{s}\)</span>), for a front-end
+total of <span class="math inline">\(87\text{s}\)</span> against
+COLMAP’s <span class="math inline">\(681\text{s}\)</span> and <span
+class="math inline">\(179\text{s}\)</span> against <span
+class="math inline">\(220\text{s}\)</span>. Figs. <a
+href="#fig:sceneview" data-reference-type="ref"
+data-reference="fig:sceneview">9</a> and <a href="#fig:scenecloud"
+data-reference-type="ref" data-reference="fig:scenecloud">10</a> carry
+the same ordering from numbers to pixels and geometry: on
+<code>twocars</code> the collapsed reference renders as blurred as
+either raw pass while both BA chains re-sharpen the car body, four
+network trajectories lie on one closed orbit against the reference’s
+open four-segment path, and on that scene only the BA chains produce a
+sparse, compact initial cloud.</p>
+<p><strong>Why the feed-forward pass survives it.</strong> The collapse
+lives in the incremental loop: closed-loop video makes the closing
+frames jointly explainable by several sub-graphs, local BA problems
+become near-rank-deficient, and each retry perturbs the neighbours. A
+single forward pass has no such stage — all frames are aggregated at
+once, nothing is “registered”, and the model’s implicit smoothness puts
+the trajectory at the <span class="math inline">\(1/N\)</span> floor
+(Fig. <a href="#fig:collapse" data-reference-type="ref"
+data-reference="fig:collapse">8</a>b, <span
+class="math inline">\(\mathrm{cv}=0.27\)</span>). Our chain inherits
+that trajectory and refines it exactly once against external SIFT
+evidence, with zero LM failures and <span
+class="math inline">\(178\text{s}\)</span> of front-end against <span
+class="math inline">\(692\text{s}\)</span> (<span
+class="math inline">\(3.9\times\)</span>).</p>
+<p><strong>What this does not show.</strong> (i) There is no
+ground-truth pose for either clip; the arbitration measures consistency
+with verified image correspondences, not accuracy — and those
+correspondences share the SIFT keypoints of both chains, so a SIFT-wide
+systematic error would be invisible to it (the two-view matrices,
+however, are estimated per pair and do not inherit either candidate’s
+poses). (ii) <code>traffic</code> is the counterexample we report
+deliberately: <span class="math inline">\(0\)</span> LM failures, a
+quality tie (<span class="math inline">\(26.92\)</span> vs <span
+class="math inline">\(26.83\)</span>, <span
+class="math inline">\(+0.09\,\text{dB}\)</span>) and no speed advantage
+(<span class="math inline">\(234\text{s}\)</span> vs <span
+class="math inline">\(241\text{s}\)</span>). (iii) This is <em>not</em>
+the classical failure mode of incremental SfM: no frame was dropped and
+no sub-model was produced. The honest statement is therefore
+scene-dependent, not “COLMAP is broken”: incremental mapping can degrade
+silently on closed-loop video, and deleting the incremental stage
+removes that exposure. (iv) A practical corollary at zero cost: count
+<code>Linear solver failure</code> lines and compute the step-profile cv
+of any mapper output before feeding it to a downstream trainer — both
+are readable from artifacts that already exist, and both flagged this
+case.</p>
+<div id="tab:scene2">
+<table>
+<caption>Two further scenes, re-run on the NVIDIA L20 with a training
+tier identical to the main table (<span
+class="math inline">\(0.25\)</span> resolution <span
+class="math inline">\(/\,7\,000\)</span> steps <span
+class="math inline">\(/\,\)</span><code>seed</code> <span
+class="math inline">\(0\)</span>, <span
+class="math inline">\(11\)</span> held-out views). <code>twocars</code>
+is a handheld <em>orbit</em> around two parked cars (closed loop, 83
+frames); <code>traffic</code> is a driving clip (82 frames). <span
+class="math inline">\(V\)</span> denotes VGGT-1B and <span
+class="math inline">\(\Omega\)</span> denotes VGGT-<span
+class="math inline">\(\Omega\)</span>; the raw and <span
+class="math inline">\(+\)</span>tri rows of a network share one set of
+cameras and therefore one verdict column. “<span
+class="math inline">\(\Delta\)</span>rot.” is the median rotation
+residual against the <em>same-scene</em> COLMAP reference after Umeyama
+absorbs scale and rigid freedom — but on <code>twocars</code> that
+reference is itself what the next two columns put on trial, so there the
+column measures mutual disagreement, not accuracy. “verdict” and “<span
+class="math inline">\(&gt;\)</span>4px” are the
+reconstruction-independent arbitration of §<a href="#sec:verdict"
+data-reference-type="ref" data-reference="sec:verdict">5.9</a> (share of
+pairs in %), scored for all arms in one unified batch over the five
+distinct camera models (COLMAP, both raw forward poses, both BA poses),
+on the paired subset of <span
+class="math inline">\(86{,}350\)</span>/<span
+class="math inline">\(88{,}263\)</span> observations triangulable under
+all five.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">arm</th>
+<th style="text-align: center;"><span
+class="math inline">\(\Delta\)</span>rot. <span
+class="math inline">\((^\circ)\)</span></th>
+<th style="text-align: center;">verdict</th>
+<th style="text-align: center;"><span
+class="math inline">\(&gt;\)</span>4px</th>
+<th style="text-align: center;">PSNR</th>
+<th style="text-align: center;">SSIM</th>
+<th style="text-align: center;">LPIPS</th>
+<th style="text-align: center;"><span
+class="math inline">\(\Delta\)</span>dB</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="8" style="text-align: left;"><code>twocars</code> — 83
+frames, handheld closed-loop orbit</td>
+</tr>
+<tr>
+<td style="text-align: left;">COLMAP</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">1.642</td>
+<td style="text-align: center;">31.5</td>
+<td style="text-align: center;">21.08</td>
+<td style="text-align: center;">0.735</td>
+<td style="text-align: center;">0.374</td>
+<td style="text-align: center;"><span
+class="math inline">\(+0.00\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><span
+class="math inline">\(\Omega\)</span> raw</td>
+<td style="text-align: center;"><span
+class="math inline">\(83.2\)</span></td>
+<td style="text-align: center;">1.643</td>
+<td style="text-align: center;">26.8</td>
+<td style="text-align: center;">21.43</td>
+<td style="text-align: center;">0.717</td>
+<td style="text-align: center;">0.269</td>
+<td style="text-align: center;"><span
+class="math inline">\(+0.35\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><span
+class="math inline">\(\Omega\)</span>+tri</td>
+<td style="text-align: center;"><span
+class="math inline">\(83.2\)</span></td>
+<td style="text-align: center;">1.643</td>
+<td style="text-align: center;">26.8</td>
+<td style="text-align: center;">21.10</td>
+<td style="text-align: center;">0.710</td>
+<td style="text-align: center;">0.320</td>
+<td style="text-align: center;"><span
+class="math inline">\(+0.02\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><span
+class="math inline">\(\Omega\)</span>+tri+BA</strong></td>
+<td style="text-align: center;"><span
+class="math inline">\(83.2\)</span></td>
+<td style="text-align: center;">0.636</td>
+<td style="text-align: center;"><strong>1.9</strong></td>
+<td style="text-align: center;"><strong>23.79</strong></td>
+<td style="text-align: center;"><strong>0.813</strong></td>
+<td style="text-align: center;"><strong>0.254</strong></td>
+<td style="text-align: center;"><strong><span
+class="math inline">\(+2.71\)</span></strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><span class="math inline">\(V\)</span>
+raw</td>
+<td style="text-align: center;"><span
+class="math inline">\(83.1\)</span></td>
+<td style="text-align: center;">4.424</td>
+<td style="text-align: center;">54.7</td>
+<td style="text-align: center;">19.31</td>
+<td style="text-align: center;">0.619</td>
+<td style="text-align: center;">0.343</td>
+<td style="text-align: center;"><span
+class="math inline">\(-1.77\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><span
+class="math inline">\(V\)</span>+tri</td>
+<td style="text-align: center;"><span
+class="math inline">\(83.1\)</span></td>
+<td style="text-align: center;">4.424</td>
+<td style="text-align: center;">54.7</td>
+<td style="text-align: center;">19.37</td>
+<td style="text-align: center;">0.626</td>
+<td style="text-align: center;">0.382</td>
+<td style="text-align: center;"><span
+class="math inline">\(-1.71\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><span
+class="math inline">\(V\)</span>+tri+BA</strong></td>
+<td style="text-align: center;"><span
+class="math inline">\(83.2\)</span></td>
+<td style="text-align: center;"><strong>0.579</strong></td>
+<td style="text-align: center;">2.3</td>
+<td style="text-align: center;">22.99</td>
+<td style="text-align: center;">0.777</td>
+<td style="text-align: center;">0.281</td>
+<td style="text-align: center;"><strong><span
+class="math inline">\(+1.91\)</span></strong></td>
+</tr>
+<tr>
+<td colspan="8" style="text-align: left;"><code>traffic</code> — 82
+frames, driving clip (control)</td>
+</tr>
+<tr>
+<td style="text-align: left;">COLMAP</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">0.245</td>
+<td style="text-align: center;">3.8</td>
+<td style="text-align: center;">26.83</td>
+<td style="text-align: center;">0.865</td>
+<td style="text-align: center;">0.236</td>
+<td style="text-align: center;"><span
+class="math inline">\(+0.00\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><span
+class="math inline">\(\Omega\)</span> raw</td>
+<td style="text-align: center;"><span
+class="math inline">\(0.177\)</span></td>
+<td style="text-align: center;">0.998</td>
+<td style="text-align: center;">15.1</td>
+<td style="text-align: center;">23.78</td>
+<td style="text-align: center;">0.763</td>
+<td style="text-align: center;">0.231</td>
+<td style="text-align: center;"><span
+class="math inline">\(-3.05\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><span
+class="math inline">\(\Omega\)</span>+tri</td>
+<td style="text-align: center;"><span
+class="math inline">\(0.177\)</span></td>
+<td style="text-align: center;">0.998</td>
+<td style="text-align: center;">15.1</td>
+<td style="text-align: center;">23.79</td>
+<td style="text-align: center;">0.764</td>
+<td style="text-align: center;">0.286</td>
+<td style="text-align: center;"><span
+class="math inline">\(-3.04\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><span
+class="math inline">\(\Omega\)</span>+tri+BA</strong></td>
+<td style="text-align: center;"><span
+class="math inline">\(\mathbf{0.065}\)</span></td>
+<td style="text-align: center;"><strong>0.232</strong></td>
+<td style="text-align: center;">3.8</td>
+<td style="text-align: center;"><strong>26.92</strong></td>
+<td style="text-align: center;"><strong>0.880</strong></td>
+<td style="text-align: center;"><strong>0.190</strong></td>
+<td style="text-align: center;"><strong><span
+class="math inline">\(+0.09\)</span></strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><span class="math inline">\(V\)</span>
+raw</td>
+<td style="text-align: center;"><span
+class="math inline">\(0.851\)</span></td>
+<td style="text-align: center;">2.008</td>
+<td style="text-align: center;">20.1</td>
+<td style="text-align: center;">20.52</td>
+<td style="text-align: center;">0.609</td>
+<td style="text-align: center;">0.351</td>
+<td style="text-align: center;"><span
+class="math inline">\(-6.31\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><span
+class="math inline">\(V\)</span>+tri</td>
+<td style="text-align: center;"><span
+class="math inline">\(0.851\)</span></td>
+<td style="text-align: center;">2.008</td>
+<td style="text-align: center;">20.1</td>
+<td style="text-align: center;">21.10</td>
+<td style="text-align: center;">0.647</td>
+<td style="text-align: center;">0.396</td>
+<td style="text-align: center;"><span
+class="math inline">\(-5.73\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><span
+class="math inline">\(V\)</span>+tri+BA</strong></td>
+<td style="text-align: center;"><span
+class="math inline">\(0.127\)</span></td>
+<td style="text-align: center;">0.255</td>
+<td style="text-align: center;">3.8</td>
+<td style="text-align: center;">26.55</td>
+<td style="text-align: center;">0.861</td>
+<td style="text-align: center;">0.219</td>
+<td style="text-align: center;"><span
+class="math inline">\(-0.28\)</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="tab:pathology">
+<table>
+<caption>Front-end cost and solver health on the two new scenes
+(identical database, identical machine, wall clocks in seconds).
+“feat”/“match” is the SIFT database both chains pay for and the only
+part they share; “map” is incremental mapping, “net” the network forward
+pass (load <span class="math inline">\(+\)</span> pre-processing <span
+class="math inline">\(+\)</span> inference) and “post” our own geometry
+post-processing (triangulation <span class="math inline">\(+\)</span> BA
+<span class="math inline">\(+\)</span> filtering); “BA” counts global BA
+invocations and “LM” counts <code>Linear solver failure</code> lines,
+i.e. Ceres reporting a singular Cholesky factorisation of the normal
+equations that it had to regularise around; “reg.” is frames
+registered.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">chain</th>
+<th style="text-align: right;">total</th>
+<th style="text-align: right;">feat</th>
+<th style="text-align: right;">match</th>
+<th style="text-align: right;">map</th>
+<th style="text-align: right;">net</th>
+<th style="text-align: right;">post</th>
+<th style="text-align: right;">BA</th>
+<th style="text-align: right;">LM</th>
+<th style="text-align: right;">reg.</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="10" style="text-align: left;"><code>twocars</code> — 83
+frames, handheld closed-loop orbit</td>
+</tr>
+<tr>
+<td style="text-align: left;">COLMAP</td>
+<td style="text-align: right;">692</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">681</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">30</td>
+<td style="text-align: right;"><strong>42</strong></td>
+<td style="text-align: right;">83/83</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>route A</strong></td>
+<td style="text-align: right;"><strong>178</strong></td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">60</td>
+<td style="text-align: right;">107</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;"><strong>0</strong></td>
+<td style="text-align: right;">83/83</td>
+</tr>
+<tr>
+<td colspan="10" style="text-align: left;"><code>traffic</code> — 82
+frames, driving clip (control)</td>
+</tr>
+<tr>
+<td style="text-align: left;">COLMAP</td>
+<td style="text-align: right;">241</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">16</td>
+<td style="text-align: right;">220</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">30</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">82/82</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>route A</strong></td>
+<td style="text-align: right;">234</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">16</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">77</td>
+<td style="text-align: right;">136</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">82/82</td>
+</tr>
+</tbody>
+</table>
+</div>
+<figure id="fig:collapse" data-latex-placement="t">
+<img src="figures_en/fig12_collapse.png" />
+<figcaption>Silent collapse of incremental mapping on a closed-loop
+video (<code>twocars</code>, 83 frames, L20). <strong>a</strong>: the
+two camera paths overlaid after Umeyama; the fit residual is <span
+class="math inline">\(37\%\)</span> of the trajectory diagonal, i.e. the
+two paths are not co-registerable — the reference consists of four
+near-collinear runs joined by jumps, ours is the closed orbit the clip
+was shot as. <strong>b</strong>: per-frame normalised camera step (log
+axis). Uniform sampling implies a flat profile at <span
+class="math inline">\(1/N\)</span> (dashed); our chain sits on that
+floor (<span class="math inline">\(\mathrm{cv}=0.27\)</span>), the
+reference stalls near a quarter of it and jumps <span
+class="math inline">\(\sim\)</span>100<span
+class="math inline">\(\times\)</span> twice (<span
+class="math inline">\(\mathrm{cv}=4.12\)</span>). <strong>c</strong>:
+control scene <code>traffic</code> — the same two chains coincide to
+<span class="math inline">\(0.065^\circ\)</span>. <strong>d</strong>:
+reconstruction-independent verdict (§<a href="#sec:verdict"
+data-reference-type="ref" data-reference="sec:verdict">5.9</a>): shared
+SIFT two-view inlier pairs, DLT-triangulated under each of the five
+distinct camera models spanning both networks, paired subset; bars are
+p50 reprojection with the fraction above <span
+class="math inline">\(4\,\text{px}\)</span> underneath.</figcaption>
+</figure>
+<figure id="fig:sceneview" data-latex-placement="t">
+<img src="figures_en/fig13_qual.png" />
+<figcaption>Qualitative held-out renders on the two new scenes (L20,
+tier A; the same test frame per scene). <strong>Top</strong>
+<code>twocars</code>: the collapsed COLMAP reference renders as blurred
+as either raw forward pass — wrong geometry earns no credit for being
+“the reference” — while both BA chains re-sharpen the car body and the
+curb lines. <strong>Bottom</strong> <code>traffic</code> (control): all
+five arms sit close to the ground truth and to each other; this is what
+a healthy scene looks like for every chain.</figcaption>
+</figure>
+<figure id="fig:scenecloud" data-latex-placement="t">
+<img src="figures_en/fig14_traj_clouds.png" />
+<figcaption>Camera trajectories and initial point clouds of the five
+models (same scenes). <strong>Top</strong>: paths after Umeyama
+alignment to the COLMAP reference, plotted in its principal plane — on
+<code>twocars</code> the reference is the open four-segment path (gray)
+while all four network paths lie on one closed orbit; on
+<code>traffic</code> all five coincide. <strong>Middle/Bottom</strong>:
+the initial point clouds fed to 3DGS (RGB, PCA view): the collapsed
+reference is a near-planar sliver; the raw network point maps are dense
+but carry their own scale and a low-confidence haze; the BA clouds are
+sparse, compact and clean — the kind of initialisation the point-cloud
+ablation (§<a href="#sec:res-ablate" data-reference-type="ref"
+data-reference="sec:res-ablate">5.3</a>) shows to matter.</figcaption>
+</figure>
+<h2 id="sec:res-perview">Per-view behaviour and qualitative results</h2>
+<p>Fig. <a href="#fig:perview" data-reference-type="ref"
+data-reference="fig:perview">11</a> gives the per-view PSNR of the 11
+held-out views. The curve shapes of the six arms agree (view 0 easiest,
+view 6 hardest) but <em>the spacing widens with difficulty</em>: on the
+hardest view COLMAP gives <span
+class="math inline">\(23.29\,\text{dB}\)</span>, <span
+class="math inline">\(\Omega\)</span>+BA <span
+class="math inline">\(24.40\,\text{dB}\)</span>, <span
+class="math inline">\(\Omega\)</span>+triangulation <span
+class="math inline">\(22.03\,\text{dB}\)</span>, bare <span
+class="math inline">\(\Omega\)</span> <span
+class="math inline">\(19.18\,\text{dB}\)</span>, bare VGGT <span
+class="math inline">\(17.80\,\text{dB}\)</span>. The farther a held-out
+view lies from the training trajectory, the larger the leverage of
+pose/intrinsics error — consistent with the geometry of Eq. <a
+href="#eq:ba" data-reference-type="eqref"
+data-reference="eq:ba">[eq:ba]</a> (pixel displacement of an
+extrapolated view <span class="math inline">\(\propto
+f\cdot\Delta\theta\)</span>, so an over-long focal length and an angular
+bias add up in the same direction). The qualitative comparison in
+Fig. <a href="#fig:qual" data-reference-type="ref"
+data-reference="fig:qual">12</a> shows the same: the floaters and
+“painted-wall” overexposure of the bare forward passes essentially
+disappear after BA, and on hard views <span
+class="math inline">\(\Omega\)</span>+BA is hard to distinguish from
+COLMAP.</p>
+<figure id="fig:perview" data-latex-placement="t">
+<img src="figures_en/fig7_perview.png" />
+<figcaption>Per-view PSNR over the 11 held-out views.</figcaption>
+</figure>
+<figure id="fig:qual" data-latex-placement="t">
+<img src="figures_en/fig8_qualitative.png" />
+<figcaption>Qualitative comparison (3 held-out views <span
+class="math inline">\(\times\)</span> 6 arms, <span
+class="math inline">\(480\times270\)</span>; the number in the corner of
+each tile is the per-view PSNR). First row (one of the hardest views):
+the bare forward passes show ground streaking and ghosting on the
+vehicles; triangulation repairs the structure; after BA the result is
+essentially indistinguishable from the COLMAP reference.</figcaption>
+</figure>
+<h1 id="sec:res-cost">Runtime and cost</h1>
+<h2 id="where-ba-is-actually-expensive">Where BA is actually
+expensive</h2>
+<div id="tab:cost">
+<table>
+<caption>Measured BA cost (same <code>database.db</code>, same
+container, idle machine, <code>OMP_NUM_THREADS</code>=8). BA wall clock
+is approximately linear in the number of observations: 0.27 M<span
+class="math inline">\(\to\)</span>68 s, 0.50 M<span
+class="math inline">\(\to\)</span>117 s, 1.91 M<span
+class="math inline">\(\to\)</span>291 s.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Run</th>
+<th style="text-align: center;">Wall clock (s)</th>
+<th style="text-align: center;">Final cost (px)</th>
+<th style="text-align: center;">Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">colmap mapper (default BA)</td>
+<td style="text-align: center;">184</td>
+<td style="text-align: center;">0.565</td>
+<td style="text-align: center;">2 sub-models / 83 images / 32 690
+points</td>
+</tr>
+<tr>
+<td style="text-align: left;">mapper (BA iterations off)</td>
+<td style="text-align: center;">87</td>
+<td style="text-align: center;">1.648</td>
+<td style="text-align: center;">83 images / 37 315 points</td>
+</tr>
+<tr>
+<td style="text-align: left;"><span
+class="math inline">\(\Rightarrow\)</span> BA inside the mapper</td>
+<td style="text-align: center;"><span
+class="math inline">\(\approx\)</span>97 (53%)</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">35 global + <span
+class="math inline">\(\approx\)</span>81 local calls, <span
+class="math inline">\(\approx\)</span>1 s each</td>
+</tr>
+<tr>
+<td style="text-align: left;">our BA round 1 (30 iterations)</td>
+<td style="text-align: center;">57</td>
+<td style="text-align: center;">0.33855</td>
+<td style="text-align: center;">bit-identical to 60/100 iterations</td>
+</tr>
+<tr>
+<td style="text-align: left;">our BA round 1 (100 iterations)</td>
+<td style="text-align: center;">142</td>
+<td style="text-align: center;">0.33855</td>
+<td style="text-align: center;">NO_CONVERGENCE</td>
+</tr>
+<tr>
+<td style="text-align: left;">our BA round 1 (300 iterations)</td>
+<td style="text-align: center;">171.6</td>
+<td style="text-align: center;">0.37900</td>
+<td style="text-align: center;">PSNR 25.08 vs 24.97: noise</td>
+</tr>
+<tr>
+<td style="text-align: left;">point_filtering + BA round 2 (50)</td>
+<td style="text-align: center;">24</td>
+<td style="text-align: center;">0.31747</td>
+<td style="text-align: center;">CONVERGENCE (18 iterations)</td>
+</tr>
+<tr>
+<td style="text-align: left;">self-generated-track BA (1.91 M
+observations)</td>
+<td style="text-align: center;">291</td>
+<td style="text-align: center;">0.256</td>
+<td style="text-align: center;">CONVERGENCE, but poses get worse</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><span>COLMAP’s “BA is the slowest stage” comes from BA being called
+repeatedly inside incremental mapping; we demote BA to a single solve at
+the end of inference — lowering the round-1 cap from 100 to 30 saves
+85 s with a bit-identical solution.</span></p>
+<figure id="fig:bacost" data-latex-placement="t">
+<img src="figures_en/fig4_ba_cost.png" />
+<figcaption>Left: iteration cap of the first global BA round versus wall
+clock; 30, 60 and 100 iterations give <em>bit-identical</em> solutions
+(shaded), 300 buys nothing. Right: BA wall clock grows linearly with the
+number of observations.</figcaption>
+</figure>
+<p>The A/B experiment in Table <a href="#tab:cost"
+data-reference-type="ref" data-reference="tab:cost">7</a> (same
+<code>database.db</code>, same container, idle machine, 8 threads) shows
+that COLMAP’s BA accounts for <span
+class="math inline">\(\approx97\text{s}\)</span> (<span
+class="math inline">\(53\%\)</span>) of the mapper, but that this is the
+<em>accumulated</em> cost of <span class="math inline">\(35\)</span>
+global plus <span class="math inline">\(\approx81\)</span> local calls,
+<span class="math inline">\(1\text{s}\)</span> on average. Note that the
+mapper sets <code>print_summary</code> to <code>false</code>[2], so no
+BA report appears in the log — which is why “BA is the slowest stage”
+could never be confirmed from logs; BA inside the COLMAP 4.0.4 mapper is
+also synchronous and serial, not overlapped with the registration
+loop.</p>
+<p>We demote BA to two global solves at the end of inference: round 1
+(30 iterations) <span class="math inline">\(57\text{s}\)</span>,
+filtering <span class="math inline">\(3\text{s}\)</span>, round 2 (cap
+<span class="math inline">\(50\)</span>, converges after <span
+class="math inline">\(18\)</span> iterations) <span
+class="math inline">\(21\text{s}\)</span>, plus <span
+class="math inline">\(22\text{s}\)</span> of triangulation, i.e. <span
+class="math inline">\(\approx106\text{s}\)</span> in total; keeping 100
+iterations in round 1 gives <span
+class="math inline">\(\approx191\text{s}\)</span>. The cost is linear in
+the number of observations (Fig. <a href="#fig:bacost"
+data-reference-type="ref" data-reference="fig:bacost">13</a>, right), so
+it can be compressed further by
+<code>--Mapper.tri_ignore_two_view_tracks 1</code> (drop short tracks)
+or by switching to a <code>sequential_matcher</code>.</p>
+<h2 id="end-to-end-net-bill">End-to-end net bill</h2>
+<figure id="fig:timing" data-latex-placement="t">
+<img src="figures_en/fig5_ba_vs_mapper.png" />
+<figcaption>Left: A/B measurement of BA’s share inside COLMAP, compared
+with our one-shot BA (reprojection error below each bar). Right: wall
+clock of each front-end stage.</figcaption>
+</figure>
+<p>Fig. <a href="#fig:timing" data-reference-type="ref"
+data-reference="fig:timing">14</a> (right) gives the front-end net bill
+(83 frames): COLMAP production script <span
+class="math inline">\(148.96\text{s}\)</span>; VGGT front-end <span
+class="math inline">\(83.90\text{s}\)</span>, <span
+class="math inline">\(\approx194\text{s}\)</span> with BA (<span
+class="math inline">\(\approx144\text{s}\)</span> for the 30-iteration
+variant); <span class="math inline">\(\Omega\)</span> front-end <span
+class="math inline">\(104.50\text{s}\)</span>, <span
+class="math inline">\(\approx296\text{s}\)</span> with BA (<span
+class="math inline">\(\approx211\text{s}\)</span> for the 30-iteration
+variant). <strong>In other words, on material that COLMAP can map
+without trouble, the motivation “use a network to save time” largely
+stops holding once BA is added.</strong> Training is unaffected by the
+front-end (<span class="math inline">\(7\,000\)</span> steps: <span
+class="math inline">\(159\)</span>–<span
+class="math inline">\(203\text{s}\)</span> on one card, fewer points
+being faster); the three end-to-end chains (front-end <span
+class="math inline">\(+\)</span> training <span
+class="math inline">\(+\)</span> rendering <span
+class="math inline">\(+\)</span> evaluation) take <span
+class="math inline">\(537.19\text{s}\)</span> (COLMAP), <span
+class="math inline">\(465.74\text{s}\)</span> (VGGT) and <span
+class="math inline">\(554.23\text{s}\)</span> (<span
+class="math inline">\(\Omega\)</span>).</p>
+<p>So where is the value of a network front-end? On this sequence we see
+three candidates: (i) <strong>all frames registered</strong>: the
+network registers <span class="math inline">\(83/83\)</span> whereas the
+mapper produces <span class="math inline">\(2\)</span> sub-models and
+<span class="math inline">\(221\)</span> registration attempts on the
+same data (the cost of the failed retries is not even counted in the
+successful path); (ii) <strong>budgetable cost</strong>: we have exactly
+two deterministic terms, matching plus one BA, and no “failed
+registration / split / manual merge / re-run” term; (iii)
+<strong>initialization quality</strong>: the network provides a coherent
+bias, which makes “one global BA” a sufficient operation, whereas COLMAP
+has to find an initialization itself through the incremental loop.
+Whether these three properties outweigh the extra wall clock depends on
+the scene and on the production constraints; one observed registration
+failure shows that the failure mode exists, it does not show that a
+network front-end is generally more robust. Conversely, on material that
+COLMAP maps without trouble the net benefit of the network front-end is
+close to zero — a boundary we want to state explicitly.</p>
+<h1 id="sec:discussion">Discussion and limitations</h1>
+<p><strong>Scope of the conclusions.</strong> We use two real videos: an
+83-frame driving sequence (weakly textured ground, occluding vehicles),
+which carries the full <span class="math inline">\(20\)</span>-arm
+matrix, and a 191-frame close-range orbit sequence (redcar, the
+seven-arm replication of §<a href="#sec:res-scene"
+data-reference-type="ref" data-reference="sec:res-scene">5.7</a>); both
+are trained for <span class="math inline">\(7\,000\)</span> steps under
+the same protocol. Absolute PSNR is not comparable with public
+benchmarks (both resolution and step count are far below 3DGS-paper
+settings), but <em>differences between arms</em> under identical
+settings are comparable, and we treat anything within <span
+class="math inline">\(\pm0.3\,\text{dB}\)</span> as noise. The residual
+of VGGT, <span class="math inline">\(-1.13\,\text{dB}\)</span> in
+protocol B, <span class="math inline">\(-0.67\,\text{dB}\)</span> in
+protocol A and <span class="math inline">\(-0.58\,\text{dB}\)</span> on
+the second scene, shows that one BA round does not fully bring the
+weaker VGGT initialization up to COLMAP level; the residual has the same
+magnitude (<span class="math inline">\(0.6\sim\!1.1\,\text{dB}\)</span>)
+across two scenes and three training tiers, i.e. it is a systematic gap
+rather than a property of one clip.</p>
+<p><strong>Why one BA round absorbs feed-forward bias but not random
+perturbation.</strong> This is a direct consequence of the least-squares
+parameterisation and needs no extra machinery. The unknowns of BA are
+the <span class="math inline">\(7N\)</span> camera parameters (plus
+<span class="math inline">\(2N\)</span> intrinsics here) and the 3D
+points, so it can only shrink residuals along directions that the
+<em>low-dimensional parameterised subspace</em> can express. The error
+of a feed-forward network over one scene is <em>coherent</em> — one
+smooth drift, one systematically long focal length, distortion
+identically zero — which lies almost entirely inside what camera
+parameters can express, so a single Levenberg–Marquardt run absorbs it
+wholesale (<span class="math inline">\(+4.44\)</span>/<span
+class="math inline">\(+5.12\,\text{dB}\)</span> in Table <a
+href="#tab:main" data-reference-type="ref"
+data-reference="tab:main">1</a>). The artificial per-frame independent
+rotations we inject, by contrast, contain high-frequency components that
+shared camera parameters cannot express and can only be damped by adding
+independent observations, which is why the same angular magnitude
+produces a far steeper loss (<span
+class="math inline">\(-10.9\,\text{dB}/^\circ\)</span> near the origin,
+Fig. <a href="#fig:sens" data-reference-type="ref"
+data-reference="fig:sens">4</a> right). This is also why we do not read
+the perturbation curve as a measurement: it bounds how much pose error
+3DGS tolerates, not how much of the front-end’s loss is attributable to
+pose. The operational corollary: <strong>the coherence of a front-end’s
+error bounds the gain of this kind of post-processing</strong>. If some
+future network produced white-noise-like per-frame pose error, this
+pipeline would not help as much; every current video-style feed-forward
+network outputs smooth trajectories, so the gain is systematic rather
+than lucky.</p>
+<p><strong>Relation to the VGGT-<span
+class="math inline">\(\Omega\)</span> paper.</strong> <span
+class="math inline">\(\Omega\)</span>’s accuracy numbers (camera AUC
+etc.) refer to the bare network output; the BA in the paper belongs to
+the annotation side and is driven by external correspondences[7]. Our
+contribution is therefore not “inventing something the paper lacks” but
+moving a classical component from the annotation stage to inference and
+proving it decisive for downstream 3DGS. There is a product implication:
+the public evaluation metrics of feed-forward networks (AUC, AbsRel) and
+downstream reconstructability have a gap — <span
+class="math inline">\(k_1\equiv0\)</span> is the most typical instance,
+and <span class="math inline">\(+1.2\,\text{dB}\)</span> of our own
+chain’s gain (protocol A<span class="math inline">\(\to\)</span>B) comes
+almost entirely from it.</p>
+<p><strong>Open problems.</strong> (1) The network dense point map is
+still useless for 3DGS initialization: as a replacement (graft) it costs
+<span class="math inline">\(-2.8\)</span> to <span
+class="math inline">\(-3.2\,\text{dB}\)</span>, and as a union (fusion,
+Eq. <a href="#eq:fuse" data-reference-type="eqref"
+data-reference="eq:fuse">[eq:fuse]</a>) still <span
+class="math inline">\(-0.45\)</span> to <span
+class="math inline">\(-1.13\,\text{dB}\)</span> while inflating the
+Gaussian count by <span class="math inline">\(77\%\)</span> and training
+wall-clock by <span class="math inline">\(75\%\)</span> (Section <a
+href="#sec:res-fuse" data-reference-type="ref"
+data-reference="sec:res-fuse">5.6</a>); matching the injection quantile
+only recovers part of it (<span
+class="math inline">\(-0.45\sim-0.55\,\text{dB}\)</span>). What is
+needed is dense geometry as a <em>weighted soft constraint</em> rather
+than a point observation (a term <span
+class="math inline">\(\lambda\rho(\|X-\mathrm{proj}(X_{\text{net}})\|^2)\)</span>
+in the training objective, or modulating the densification threshold
+where <span class="math inline">\(c&gt;\tau\)</span>); (2) we reuse the
+SIFT database of the production pipeline, which is free for COLMAP users
+but not for a setting that wants no matching at all — then another
+independent source of correspondence is needed (LoFTR[11]/RAFT-style
+dense matching, or temporal and IMU priors); (3) dynamic objects (moving
+vehicles) form systematic outliers in the tracks, which we suppress with
+<code>point_filtering</code> and a robust kernel but do not model.</p>
+<h1 id="sec:conclusion">Conclusion</h1>
+<p>On a domestic AI-accelerator platform we detached COLMAP’s
+“triangulation + bundle adjustment” from the incremental mapping loop
+and used them as a one-shot post-processing of a feed-forward front-end
+(VGGT / VGGT-<span class="math inline">\(\Omega\)</span>): triangulate
+under frozen network poses to rebuild a 3D point set consistent with
+external SIFT observations, then run one global BA with poses, focal
+length and distortion free, with a point-filtering round in between and
+a second BA after it. These five steps alone recover <span
+class="math inline">\(4.4\)</span>–<span
+class="math inline">\(7.5\,\text{dB}\)</span> of the feed-forward
+front-end’s loss in 3DGS down to <span
+class="math inline">\(0.10\,\text{dB}\)</span> (<span
+class="math inline">\(\Omega\)</span>) and <span
+class="math inline">\(1.13\,\text{dB}\)</span> (VGGT), and calibrate the
+distortion coefficients the network never estimates. We also state the
+two necessary conditions for this to work (correspondence must be
+independent of the network; the network dense cloud should enter neither
+the residuals nor the 3DGS initialization) and the price (on this
+sequence the front-end speed advantage largely disappears, so the case
+for the chain rests on a predictable post-processing cost and on scenes
+where incremental registration fails, not on raw speed). One of the four
+scenes also showed the other direction of the same story: on a
+closed-loop handheld video the incremental mapper failed
+<em>silently</em> — every frame registered, a plausible-looking model
+exported — and only a solver-failure count, a non-physical step profile
+and an image-based arbitration built outside both reconstructions
+exposed it, at which point our chain was <span
+class="math inline">\(+2.71\,\text{dB}\)</span> better and <span
+class="math inline">\(3.9\times\)</span> cheaper. For practitioners who
+want to replace an SfM front-end with a feed-forward network our
+recommendation is: <strong>use the network as a good initialization
+generator and keep classical BA at the end of inference, rather than
+expecting end-to-end replacement of the optimization.</strong></p>
+<h1 class="unnumbered" id="references">References</h1>
+<ol>
+<li><p>Kerbl B, Kopanas G, Leimkühler T, Drettakis G. 3D Gaussian
+splatting for real-time radiance field rendering[J]. ACM Transactions on
+Graphics, 2023, 42(4): 139:1–139:14.</p></li>
+<li><p>Schönberger J L, Frahm J M. Structure-from-motion
+revisited[C]//Proc. IEEE Conf. Computer Vision and Pattern Recognition
+(CVPR). 2016: 4104–4113.</p></li>
+<li><p>Schönberger J L, Preisach G, Niemasz K, et al.
+Structure-from-motion with incremental mapping and bundle adjustment in
+the loop[C]//Eur. Conf. Computer Vision (ECCV). 2020.</p></li>
+<li><p>Agarwal S, Mierle K, Szeliski R, et al. Bundle adjustment in the
+large: scalable modern implementations[C]//Eur. Conf. Computer Vision
+(ECCV). 2010.</p></li>
+<li><p>Lowe D G. Distinctive image features from scale-invariant
+keypoints[J]. International Journal of Computer Vision, 2004, 60(2):
+91–110.</p></li>
+<li><p>Wang J, Chen M, Karaev N, Vedaldi A, Rupprecht C, Novotny D.
+VGGT: Visual geometry grounded transformer[C]//Proc. IEEE/CVF Conf.
+Computer Vision and Pattern Recognition (CVPR). 2025: 5942–5954.
+arXiv:2503.11651.</p></li>
+<li><p>Wang J, Chen M, Zhang S, Karaev N, Schönberger J, Labatut P,
+Bojanowski P, Novotny D, Vedaldi A, Rupprecht C. VGGT-<span
+class="math inline">\(\Omega\)</span>[EB/OL]. arXiv:2605.15195,
+2026.</p></li>
+<li><p>Wang S, Leroy V, Cabon Y, et al. DUSt3R: Geometric 3D vision made
+easy[C]//Proc. IEEE/CVF Conf. Computer Vision and Pattern Recognition
+(CVPR). 2024.</p></li>
+<li><p>Sarlin P E, Cadena C, Siegwart R, Dymczyk R. SuperGlue: Learning
+feature matching with graph neural networks[C]//Proc. IEEE/CVF Conf.
+Computer Vision and Pattern Recognition (CVPR). 2020.</p></li>
+<li><p>Lindenberger P, Arpinin S, Sarlin P E, et al. LightGlue: Local
+feature matching at light speed[C]//Proc. IEEE/CVF Int. Conf. Computer
+Vision (ICCV). 2023.</p></li>
+<li><p>Sun J, Shen Z, Wang Y, et al. LoFTR: Detector-free local feature
+matching with transformers[C]//Proc. IEEE/CVF Conf. Computer Vision and
+Pattern Recognition (CVPR). 2021.</p></li>
+<li><p>Lin H, Peng S, Sun H, et al. VGGSfM: Visual geometry grounded
+deep structure from motion[C]//Proc. IEEE/CVF Conf. Computer Vision and
+Pattern Recognition (CVPR). 2024.</p></li>
+<li><p>Hahlbohm F, Franke L, Eisemann M, Magnor M. Faster-GS: Analyzing
+and improving Gaussian splatting optimization[EB/OL]. arXiv,
+2026.</p></li>
+</ol>
+<h1 id="app:bin">COLMAP 4.0.4 binary format: three traps</h1>
+<p><strong>Trap 1: poses really live in
+<code>frames.bin</code>.</strong> COLMAP 4 introduced the rig/frame
+refactor; <code>bundle_adjuster</code>/<code>point_triangulator</code>
+read <code>rigs.bin</code> <span class="math inline">\(+\)</span>
+<code>frames.bin</code>, where each frame record is
+<code>frame_id:i32 </code><span
+class="math inline">\(\vert\)</span><code> rig_id:i32 </code><span
+class="math inline">\(\vert\)</span><code> 7</code><span
+class="math inline">\(\times\)</span><code>f64(</code><span
+class="math inline">\(q_w,q_x,q_y,q_z,t_x,t_y,t_z\)</span><code>) </code><span
+class="math inline">\(\vert\)</span><code> 20 B tail</code> (<span
+class="math inline">\(84\text{B}\)</span> per record in our case; derive
+the record length as <code>len(body)//n</code> rather than hard-coding
+it), and the <span class="math inline">\((q,t)\)</span> in
+<code>images.bin</code> are derived. Our first export script rewrote
+only <code>images.bin</code> and copied <code>frames.bin</code> from the
+COLMAP template <span class="math inline">\(\Rightarrow\)</span> all
+subsequent triangulation/BA silently used COLMAP’s own poses, the
+network poses were ignored entirely, and we obtained a <em>spurious</em>
+“<span class="math inline">\(\Omega\)</span>+BA equals COLMAP” result.
+Detection: compute the pose difference between the exported model and
+the raw network model — if it is exactly <span
+class="math inline">\(0.0000^\circ\)</span>, the network poses were
+never written. We have since <em>audited</em> the equivalence instead of
+assuming it (<code>stale_bin.py</code>): across <span
+class="math inline">\(39\)</span> models written by COLMAP 4.0.4 on
+CoreX-5.0 and <span class="math inline">\(11\)</span> by 4.1.1 on CUDA,
+the legacy pose in <code>images.bin</code> agrees with the frame-derived
+pose to <span class="math inline">\(0.000^\circ\)</span> and <span
+class="math inline">\(0.0000\)</span> in translation; and a synthetic
+<span class="math inline">\(+5^\circ\)</span> rotation injected into
+<code>images.bin</code> alone leaves <code>cam_from_world()</code>
+completely unchanged while the raw field moves by exactly <span
+class="math inline">\(5.000^\circ\)</span>, which proves the API reads
+<code>frames.bin</code> and that the detection rule above has no false
+negatives. One of our own alarms is retracted here: during the new-scene
+runs a reader reported a <span class="math inline">\(9.4\)</span>
+disagreement between the two files, and it was a wrong record stride in
+that reader, not COLMAP behaviour — the audit tool is therefore also a
+regression test for the reader. <strong>Trap 2: the
+<code>cameras.bin</code> model_id numbering differs from 3.x</strong>
+(measured: <code>1=PINHOLE</code> (4 parameters),
+<code>2=SIMPLE_RADIAL</code> (4), <code>0=SIMPLE_PINHOLE</code> (3));
+parsing with 3.x numbering shifts <span
+class="math inline">\((f_x,f_y,c_x,c_y)\)</span> by one slot. Robust
+approach: infer the number of parameters from the file size.
+<strong>Trap 3: the <code>error</code> field of a hand-written model
+cannot be used for self-checks.</strong> <code>model_analyzer</code>
+reports the mean reprojection error from the stored <code>error</code>
+field (written as <span class="math inline">\(0\)</span> by us);
+self-checks must use the <em>initial cost</em> reported by
+<code>bundle_adjuster --max_num_iterations 1</code>. Moreover the
+<code>output_path</code> of
+<code>bundle_adjuster</code>/<code>point_filtering</code> must
+<em>already exist</em>, otherwise the run errors out and a later
+<code>point_filtering</code> core-dumps; and
+<code>point_filtering</code> options carry no
+<code>PointFiltering.</code> prefix.</p>
+<h1 id="app:port">Platform port to CoreX-5.0 (summary)</h1>
+<p>The full text of this appendix and of the cross-platform check
+(main-paper Appendices B and C) lives in the companion file
+<code>appendix_en.tex</code> / <code>appendix_en.pdf</code>; we
+summarise the results here. The training backend is our port of
+Faster-GS (inside nerficg) to Iluvatar CoreX-5.0. Measured against
+upstream (<code>ae2bf80</code>) it is <span
+class="math inline">\(13\)</span> files, <span
+class="math inline">\(+646/-177\)</span> lines, plus a <span
+class="math inline">\(171\)</span>-line compatibility header, whereas
+the <em>same</em> tree on the L20 needs one functional line. Five root
+causes, each with a measurable signature. (i) The hardware warp is <span
+class="math inline">\(64\)</span> lanes wide but
+<code>__ballot_sync</code> still returns a <span
+class="math inline">\(32\)</span>-bit mask and <code>__fns</code>
+crashes the vendor compiler, so Faster-GS’s warp-cooperative tile
+enumeration fails <em>silently</em> (instances reserved <span
+class="math inline">\(\neq\)</span> written <span
+class="math inline">\(\to\)</span> holes in the instance buffer <span
+class="math inline">\(\to\)</span> invalid tile keys <span
+class="math inline">\(\to\)</span> <code>n_buckets</code> overflow); we
+rewrite the primitives from absolute-source-lane shuffles and make every
+early exit domain-uniform (<span class="math inline">\(89\)</span>
+tagged substitutions in <span class="math inline">\(5\)</span> kernel
+files; a kernel-internal counter then reports zero mismatches). (ii)
+That cooperative path, although now correct, is <em>not faster</em> —
+<span class="math inline">\(165\)</span> s vs <span
+class="math inline">\(163\)</span> s at <span
+class="math inline">\(0.25\times\)</span>, and <span
+class="math inline">\(267\)</span> s vs <span
+class="math inline">\(259\)</span> s at <span
+class="math inline">\(0.5\times\)</span> in the same session, quality
+equal up to float ordering — so the shipped default remains the plain
+sequential enumeration (<code>FGS_COOP32=1</code> re-enables it). (iii)
+<code>cub::DoubleBuffer::selector</code> is not flipped consistently, so
+<code>Current()</code> can hand back the <em>unsorted</em> buffer; we
+pin it. (iv) The implicit ordering between a created stream and the
+legacy default stream is not implemented, and that — not memory planning
+— is the real cause of the reported
+<code>Tried to allocate 7687.50 GiB</code> “OOM”: a racing memset
+corrupts <code>instance_ranges</code>, hence <code>n_buckets</code>,
+hence a <code>numel</code> overflow, which no amount of memory would
+have satisfied. (v) Header and libcu++ gaps (<code>std::max</code>,
+<code>numeric_limits</code>, <code>::nanf</code>, and
+<code>cub::Max</code> dropped by CUDA 13 on the other platform), plus
+<code>ENABLE_FASTMATH</code> deliberately off so that the two platforms
+stay bit-comparable. Faster-GS ships its own Adam, densification, 3D
+filter, rasterizer and sort (<span class="math inline">\(4\,853\)</span>
+lines compiled into one extension) and never links
+<code>diff_gaussian_rasterization</code> — hence the vendor’s
+<code>accel</code> branch cannot influence this path; the only nerficg
+CUDA piece it uses is the Morton encoder (<span
+class="math inline">\(0.7\)</span> ms to encode,
+<code>torch.argsort</code> <span class="math inline">\(6.2\)</span> ms
+at <span class="math inline">\(1.1\)</span>M Gaussians, invoked at most
+<span class="math inline">\(3\times\)</span> in <span
+class="math inline">\(30\,000\)</span> steps), i.e. the kernel that once
+made nerficg runs take hours is off the critical path. We also eliminate
+the most tempting explanation for the residual <span
+class="math inline">\(2\times\)</span> gap: idle cards report <span
+class="math inline">\(500\)</span> MHz against a <span
+class="math inline">\(1750\)</span> MHz maximum, but under load they run
+at <span class="math inline">\(1750\)</span> MHz at <span
+class="math inline">\(78\)</span>–<span
+class="math inline">\(98\)</span> W of a <span
+class="math inline">\(450\)</span> W cap with <span
+class="math inline">\(84\)</span>–<span
+class="math inline">\(100\%\)</span> utilisation — no clock lock and no
+power cap, so the remaining <span class="math inline">\(41\)</span> vs
+<span class="math inline">\(85\)</span> it/s difference belongs to code
+generation and microarchitecture, not to configuration.</p>
+<h1 id="app:l20">Cross-platform check on NVIDIA L20 (summary)</h1>
+<p>The three headline configurations re-run verbatim on an NVIDIA L20
+(CUDA 13.0, PyTorch 2.13, dedicated card) agree with the Iluvatar
+results to <span class="math inline">\(\le0.21\,\text{dB}\)</span>,
+below our <span class="math inline">\(0.3\,\text{dB}\)</span> re-run
+floor; SSIM and LPIPS match configuration by configuration, Gaussian
+counts agree within <span class="math inline">\(0.7\%\)</span>, and
+“<span class="math inline">\(\Omega\)</span> + triangulation + BA equals
+COLMAP” holds on CUDA as well (<span
+class="math inline">\(25.77\)</span> vs <span
+class="math inline">\(25.62\)</span>). The L20 is only <span
+class="math inline">\(10\)</span>–<span
+class="math inline">\(23\%\)</span> faster end to end, because the
+ported backend approaches it and because data loading plus evaluation is
+about a third of the wall clock. Caveat: the L20 arms ran sequentially
+on one card while the Iluvatar matrix ran one dedicated card per arm, so
+absolute wall times are nominal.</p>
+<h1 id="app:backend">Gaussian-rasterization backends: which
+optimizations pay (summary)</h1>
+<p>The full version of this appendix — branch genealogy and code-level
+attribution, the call-convention trap, the crossover, the sparse-Adam
+measurement and both result tables — lives in the companion file
+<code>appendix_en.tex</code> / <code>appendix_en.pdf</code>; the
+headline is that the accelerator vendor’s claim that an “optimized 3DGS
+rasterizer” makes Faster-GS redundant does not survive measurement.
+<strong>Attribution.</strong> The vendor’s <code>accel</code> branch is
+byte-identical to upstream’s October-2024 integration of the Taming-3DGS
+drop-in rasterizer (fused and sparse Adam, DC/residual-SH decoupling,
+contribution-bound culling, per-tile bucketing); the vendor contribution
+is the CoreX port, not rasterizer work. <strong>A trap that changes
+conclusions.</strong> <code>accel</code> <em>requires</em> the split
+<code>dc</code>/<code>shs</code> call convention, but nerficg still
+calls it the legacy way; on strict CUDA the null pointer faults at
+step 0, whereas on the accelerator’s unified-addressing runtime the call
+<em>silently succeeds</em> and trains a different model (the DC term
+frozen, every higher-order SH coefficient shifted by one slot).
+Repairing the three call sites moves the accelerator’s <span
+class="math inline">\(7{,}000\)</span>-step result from <span
+class="math inline">\(24.59\,\text{dB}\)</span> to <span
+class="math inline">\(24.96\,\text{dB}\)</span>, makes it <span
+class="math inline">\(16\%\)</span> faster, and collapses the previously
+reported “platform quality gap” from <span
+class="math inline">\(\approx0.4\,\text{dB}\)</span> to <span
+class="math inline">\(0.04\,\text{dB}\)</span>: it was a wiring bug, not
+hardware. Any cross-vendor accuracy comparison must therefore verify the
+backend’s call convention first. <strong>Measurements.</strong> The
+<code>accel</code> branch has a resolution/density <em>crossover</em>:
+inside nerficg at <span class="math inline">\(0.25\times\)</span> it is
+a net loss (<span class="math inline">\(233\)</span> s vs <span
+class="math inline">\(196\)</span> s), at <span
+class="math inline">\(0.5\times\)</span> a <span
+class="math inline">\(1.28\times\)</span> gain (<span
+class="math inline">\(288\!\to\!225\)</span> s on the L20), and at <span
+class="math inline">\(0.25\times/30\,000\)</span> steps a gain again
+(<span class="math inline">\(847\!\to\!807\)</span> s) — a published
+rasterizer speedup is meaningless without the resolution and point-count
+it was measured at. Sparse Adam, which we had to wire into nerficg
+ourselves, is worth <span class="math inline">\(16\)</span>–<span
+class="math inline">\(19\%\)</span> in the native driver but
+<em>nothing</em> inside nerficg, whose single fused Adam over all
+parameter groups already beats the baseline sparse Adam was designed to
+improve on. The dominant knobs are the backend algorithm and the driver:
+Faster-GS, which never links <code>diff_gaussian_rasterization</code>,
+is <span class="math inline">\(1.3\)</span>–<span
+class="math inline">\(2.1\times\)</span> faster than the <em>best</em>
+classic arm at equal quality, and its margin survives the higher
+resolution. <strong>Recommended configuration (identical on both
+platforms).</strong> nerficg driver <span
+class="math inline">\(+\)</span> Faster-GS backend <span
+class="math inline">\(+\)</span> fixed call convention: <span
+class="math inline">\(147\)</span> s (L20) and <span
+class="math inline">\(196\)</span> s (accelerator) for <span
+class="math inline">\(0.25\times/7{,}000\)</span> steps, <span
+class="math inline">\(159\)</span> s and <span
+class="math inline">\(272\)</span> s at <span
+class="math inline">\(0.5\times\)</span>. If the <code>accel</code>
+branch is enabled anywhere, the split-convention patch is mandatory, not
+optional, and must be verified per platform — one platform crashes, the
+other silently returns a different model.</p>
+<h1 id="app:scripts">Reproduction notes and script inventory</h1>
+<p>The <code>code/</code> directory (identical to
+<code>/root/cmp_test/wzong_eval/bin/</code> inside the container):
+<code>run_matrix.sh</code> (20-arm matrix, dedicated
+<code>MODEL_NAME</code> and GPU per arm), <code>run_ba_arm.sh</code>
+(route A in one shot: export <span class="math inline">\(\to\)</span>
+triangulate <span class="math inline">\(\to\)</span> BA <span
+class="math inline">\(\to\)</span> filter <span
+class="math inline">\(\to\)</span> BA <span
+class="math inline">\(\to\)</span> filter <span
+class="math inline">\(\to\)</span> graft <span
+class="math inline">\(\to\)</span> configs), <code>run_tier.sh</code>
+(quality tiers l/m/h: only resolution and iteration count change),
+<code>run_undist_arm.sh</code> (protocol B), <code>run_one.sh</code>
+(training <span class="math inline">\(+\)</span> held-out evaluation),
+<code>colmap_frames.py</code>
+(<code>frames.bin</code>/<code>cameras.bin</code> reading and pose
+rewriting), <code>mk_vggt_sparse2.py</code> (network poses <span
+class="math inline">\(\to\)</span> COLMAP model),
+<code>mk_grid_tracks.py</code> (route B self-generated tracks),
+<code>mk_ba_plus_vgpts.py</code> (Sim3 graft of the network cloud),
+<code>mk_fused_sparse.py</code> (union fusion: SIFT points <span
+class="math inline">\(\cup\)</span> confidence-filtered network points),
+<code>geom_diff.py</code> (Umeyama pose/intrinsic residuals),
+<code>cmpba2.py</code> (bitwise comparison of two BA solutions),
+<code>ba_vs_mapper.sh</code>/<code>ba_ab.sh</code> (BA cost A/B),
+<code>perview.py</code> (per-view PSNR), <code>paper_meta.py</code>
+(metadata and track-length statistics). Scenes 3–4
+(<code>code/scenes/</code>, <code>code/pipeline/run_front.sh</code> /
+<code>run_arm31.sh</code> / <code>run_train31.sh</code> /
+<code>extract_frames.py</code>): <code>fwd_omega.py</code> (batched
+VGGT-<span class="math inline">\(\Omega\)</span> forward pass),
+<code>mkcfg31.py</code> (derives the four nerficg configs of a scene
+from one template), <code>ba_health.py</code> (parses a mapper log into
+wall clocks, global-BA rounds and <code>Linear solver failure</code>
+counts), <code>geom_diff2.py</code> (frame-derived poses only; Umeyama
+residuals plus the per-frame step-profile cv — the successor of
+<code>geom_diff.py</code>), <code>pair_reproj_check.py</code> (§<a
+href="#sec:verdict" data-reference-type="ref"
+data-reference="sec:verdict">5.9</a>: DLT of shared SIFT inlier pairs
+under each candidate, with the paired-subset and win-rate tables),
+<code>stale_bin.py</code> (the
+<code>images.bin</code>/<code>frames.bin</code> audit of appendix <a
+href="#app:bin" data-reference-type="ref"
+data-reference="app:bin">9</a>), <code>dump_traj.py</code> (trajectory
+export for Figs. <a href="#fig:collapse" data-reference-type="ref"
+data-reference="fig:collapse">8</a> and <a href="#fig:scenecloud"
+data-reference-type="ref" data-reference="fig:scenecloud">10</a>).
+Figures and tables: <code>tools/make_figs.py</code>,
+<code>tools/make_fig12.py</code>, <code>tools/make_fig13.py</code> and
+<code>tools/make_fig14.py</code> (<code>FIG_LANG=en</code> for the
+English version). Key commands:</p>
+<pre><code>colmap point_triangulator --database_path $DB \
+  --image_path $IMG \
+  --input_path $M --output_path $M --clear_points 1 \
+  --refine_intrinsics 0 --Mapper.tri_min_angle 0.5 \
+  --Mapper.tri_ignore_two_view_tracks 0 \
+  --Mapper.num_threads 8
+colmap bundle_adjuster --input_path $IN --output_path $OUT \
+  --BundleAdjustment.refine_focal_length 1 \
+  --BundleAdjustment.refine_extra_params 1 \
+  --BundleAdjustmentCeres.max_num_iterations 30
+colmap point_filtering --input_path $IN --output_path $OUT \
+  --max_reproj_error 4 --min_tri_angle 1.5
+  # note: no PointFiltering. option prefix</code></pre>
+<h1 id="app:all">Full results for all arms</h1>
+<p>Table <a href="#tab:all" data-reference-type="ref"
+data-reference="tab:all">[tab:all]</a> lists every arm of the clean
+matrix (protocol A/B, ablations and the perturbation arms) so that any
+difference quoted in the text can be verified. The “3D initialization”
+column is exactly where we and the official feed-forward BA disagree:
+theirs looks the network dense point map up at the query-frame pixel,
+ours triangulates external SIFT inliers under frozen poses.</p>
+<div class="table*">
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Arm</th>
+<th style="text-align: left;">Front-end configuration</th>
+<th style="text-align: left;">3D initialization</th>
+<th style="text-align: center;">PSNR <span
+class="math inline">\(\uparrow\)</span></th>
+<th style="text-align: center;">SSIM <span
+class="math inline">\(\uparrow\)</span></th>
+<th style="text-align: center;">LPIPS <span
+class="math inline">\(\downarrow\)</span></th>
+<th style="text-align: center;">Gaussians</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="7" style="text-align: left;"><strong>Protocol A (raw
+distorted images)</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>cmap_raw</strong></td>
+<td style="text-align: left;">COLMAP full pipeline (reference)</td>
+<td style="text-align: left;">COLMAP SIFT+BA</td>
+<td style="text-align: center;"><strong>25.77</strong></td>
+<td style="text-align: center;">0.837</td>
+<td style="text-align: center;">0.234</td>
+<td style="text-align: center;">626616</td>
+</tr>
+<tr>
+<td style="text-align: left;">omega</td>
+<td style="text-align: left;"><span
+class="math inline">\(\Omega\)</span> raw forward (network point
+map)</td>
+<td style="text-align: left;">none (network point map)</td>
+<td style="text-align: center;">21.35</td>
+<td style="text-align: center;">0.674</td>
+<td style="text-align: center;">0.326</td>
+<td style="text-align: center;">697889</td>
+</tr>
+<tr>
+<td style="text-align: left;">omegatri</td>
+<td style="text-align: left;"><span
+class="math inline">\(\Omega\)</span> + triangulation (frozen
+poses)</td>
+<td style="text-align: left;">SIFT triangulation</td>
+<td style="text-align: center;">23.01</td>
+<td style="text-align: center;">0.741</td>
+<td style="text-align: center;">0.290</td>
+<td style="text-align: center;">651023</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>omegatriba</strong></td>
+<td style="text-align: left;"><span
+class="math inline">\(\Omega\)</span> + triangulation + BA (ours)</td>
+<td style="text-align: left;">SIFT triangulation+BA</td>
+<td style="text-align: center;"><strong>25.79</strong></td>
+<td style="text-align: center;">0.843</td>
+<td style="text-align: center;">0.219</td>
+<td style="text-align: center;">634702</td>
+</tr>
+<tr>
+<td style="text-align: left;">omegatriba_vgpts</td>
+<td style="text-align: left;"><span
+class="math inline">\(\Omega\)</span> + BA, initialized with network
+point map</td>
+<td style="text-align: left;">SIFT triangulation+BA</td>
+<td style="text-align: center;">22.99</td>
+<td style="text-align: center;">0.766</td>
+<td style="text-align: center;">0.264</td>
+<td style="text-align: center;">715366</td>
+</tr>
+<tr>
+<td style="text-align: left;">vggt</td>
+<td style="text-align: left;">VGGT raw forward (network point map)</td>
+<td style="text-align: left;">none (network point map)</td>
+<td style="text-align: center;">19.98</td>
+<td style="text-align: center;">0.596</td>
+<td style="text-align: center;">0.427</td>
+<td style="text-align: center;">635674</td>
+</tr>
+<tr>
+<td style="text-align: left;">vggttri</td>
+<td style="text-align: left;">VGGT + triangulation (frozen poses)</td>
+<td style="text-align: left;">SIFT triangulation</td>
+<td style="text-align: center;">20.99</td>
+<td style="text-align: center;">0.641</td>
+<td style="text-align: center;">0.372</td>
+<td style="text-align: center;">627185</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>vggttriba</strong></td>
+<td style="text-align: left;">VGGT + triangulation + BA (ours)</td>
+<td style="text-align: left;">SIFT triangulation+BA</td>
+<td style="text-align: center;"><strong>25.10</strong></td>
+<td style="text-align: center;">0.811</td>
+<td style="text-align: center;">0.253</td>
+<td style="text-align: center;">—</td>
+</tr>
+<tr>
+<td style="text-align: left;">vggttrilong</td>
+<td style="text-align: left;">VGGT + triangulation + BA, round-1 cap
+300</td>
+<td style="text-align: left;">SIFT triangulation+BA</td>
+<td style="text-align: center;">25.02</td>
+<td style="text-align: center;">0.811</td>
+<td style="text-align: center;">0.255</td>
+<td style="text-align: center;">622666</td>
+</tr>
+<tr>
+<td style="text-align: left;">vggttriba_vgpts</td>
+<td style="text-align: left;">VGGT + BA, initialized with network point
+map</td>
+<td style="text-align: left;">SIFT triangulation+BA</td>
+<td style="text-align: center;">21.90</td>
+<td style="text-align: center;">0.709</td>
+<td style="text-align: center;">0.341</td>
+<td style="text-align: center;">695987</td>
+</tr>
+<tr>
+<td style="text-align: left;">vggtgrid</td>
+<td style="text-align: left;">Route B: self-generated tracks (no
+BA)</td>
+<td style="text-align: left;">self-projection of network point map</td>
+<td style="text-align: center;">19.99</td>
+<td style="text-align: center;">0.600</td>
+<td style="text-align: center;">0.407</td>
+<td style="text-align: center;">621609</td>
+</tr>
+<tr>
+<td style="text-align: left;">vggtgridba</td>
+<td style="text-align: left;">Route B: self-generated tracks + BA</td>
+<td style="text-align: left;">self-projection of network point map</td>
+<td style="text-align: center;">20.04</td>
+<td style="text-align: center;">0.601</td>
+<td style="text-align: center;">0.403</td>
+<td style="text-align: center;">—</td>
+</tr>
+<tr>
+<td colspan="7" style="text-align: left;"><strong>Protocol B
+(self-calibrated <span class="math inline">\(k_1\)</span>,
+undistorted)</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>cmap</strong></td>
+<td style="text-align: left;">COLMAP full pipeline (undistorted,
+reference)</td>
+<td style="text-align: left;">COLMAP SIFT+BA</td>
+<td style="text-align: center;"><strong>26.82</strong></td>
+<td style="text-align: center;">0.877</td>
+<td style="text-align: center;">0.203</td>
+<td style="text-align: center;">477211</td>
+</tr>
+<tr>
+<td style="text-align: left;">omegau</td>
+<td style="text-align: left;"><span
+class="math inline">\(\Omega\)</span> raw forward (undistorted)</td>
+<td style="text-align: left;">none (network point map)</td>
+<td style="text-align: center;">21.74</td>
+<td style="text-align: center;">0.706</td>
+<td style="text-align: center;">0.308</td>
+<td style="text-align: center;">665745</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>omegatribau</strong></td>
+<td style="text-align: left;"><span
+class="math inline">\(\Omega\)</span> + triangulation + BA (undistorted,
+ours)</td>
+<td style="text-align: left;">SIFT triangulation+BA</td>
+<td style="text-align: center;"><strong>26.72</strong></td>
+<td style="text-align: center;">0.875</td>
+<td style="text-align: center;">0.198</td>
+<td style="text-align: center;">—</td>
+</tr>
+<tr>
+<td style="text-align: left;">vggtu</td>
+<td style="text-align: left;">VGGT raw forward (undistorted)</td>
+<td style="text-align: left;">none (network point map)</td>
+<td style="text-align: center;">19.30</td>
+<td style="text-align: center;">0.588</td>
+<td style="text-align: center;">0.425</td>
+<td style="text-align: center;">573660</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>vggttribau</strong></td>
+<td style="text-align: left;">VGGT + triangulation + BA (undistorted,
+ours)</td>
+<td style="text-align: left;">SIFT triangulation+BA</td>
+<td style="text-align: center;"><strong>25.69</strong></td>
+<td style="text-align: center;">0.836</td>
+<td style="text-align: center;">0.236</td>
+<td style="text-align: center;">—</td>
+</tr>
+<tr>
+<td style="text-align: left;">cp06</td>
+<td style="text-align: left;">Perturbation: COLMAP poses rotated by
+<span class="math inline">\(0.6^\circ\)</span></td>
+<td style="text-align: left;">COLMAP SIFT+BA</td>
+<td style="text-align: center;">20.29</td>
+<td style="text-align: center;">0.584</td>
+<td style="text-align: center;">0.399</td>
+<td style="text-align: center;">543342</td>
+</tr>
+<tr>
+<td style="text-align: left;">cp13</td>
+<td style="text-align: left;">Perturbation: rotation <span
+class="math inline">\(1.3^\circ\)</span></td>
+<td style="text-align: left;">COLMAP SIFT+BA</td>
+<td style="text-align: center;">17.55</td>
+<td style="text-align: center;">0.505</td>
+<td style="text-align: center;">0.503</td>
+<td style="text-align: center;">425435</td>
+</tr>
+<tr>
+<td style="text-align: left;">cp26</td>
+<td style="text-align: left;">Perturbation: rotation <span
+class="math inline">\(2.6^\circ\)</span></td>
+<td style="text-align: left;">COLMAP SIFT+BA</td>
+<td style="text-align: center;">16.34</td>
+<td style="text-align: center;">0.482</td>
+<td style="text-align: center;">0.561</td>
+<td style="text-align: center;">340567</td>
+</tr>
+</tbody>
+</table>
+</div>
+</body>
+</html>
